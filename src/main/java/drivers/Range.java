@@ -51,7 +51,7 @@ public class Range implements Driver {
 			upper = Integer.parseInt(matcher.group(1));
 		}
 		catch (NumberFormatException e) {
-			throw new QueryError("Integers must be within signed 32-bit bounds");
+			throw new QueryError("Integers must be within signed 32-bit bounds", e);
 		}
 
 		if (matcher.group(2) == null)
