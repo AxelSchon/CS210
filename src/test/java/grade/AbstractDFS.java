@@ -112,10 +112,10 @@ public abstract class AbstractDFS {
 	}
 
 	protected static final DynamicTest testTableName(String tableName) {
-		final var call = "getTableName() yields %s".formatted(tableName);
+		final var call = "getTableName()";
 		logCall(tableName, call);
 
-		return dynamicTest(call, () -> {
+		return dynamicTest("getTableName() yields %s".formatted(tableName), () -> {
 			assertTimeout(ofMillis(TIMEOUT_MILLIS), () -> {
 				assertEquals(
 					tableName,
@@ -129,10 +129,10 @@ public abstract class AbstractDFS {
 	}
 
 	protected static final DynamicTest testColumnNames(String tableName, List<String> columnNames) {
-		final var call = "getColumnNames() yields %s".formatted(columnNames);
+		final var call = "getColumnNames()";
 		logCall(tableName, call);
 
-		return dynamicTest(call, () -> {
+		return dynamicTest("getColumnNames() yields %s".formatted(columnNames), () -> {
 			assertTimeout(ofMillis(TIMEOUT_MILLIS), () -> {
 				assertEquals(
 					columnNames,
@@ -146,10 +146,10 @@ public abstract class AbstractDFS {
 	}
 
 	protected static final DynamicTest testColumnTypes(String tableName, List<FieldType> columnTypes) {
-		final var call = "getColumnTypes() yields %s".formatted(columnTypes);
+		final var call = "getColumnTypes()";
 		logCall(tableName, call);
 
-		return dynamicTest(call, () -> {
+		return dynamicTest("getColumnTypes() yields %s".formatted(columnTypes), () -> {
 			assertTimeout(ofMillis(TIMEOUT_MILLIS), () -> {
 				assertEquals(
 					columnTypes,
@@ -163,10 +163,10 @@ public abstract class AbstractDFS {
 	}
 
 	protected static final DynamicTest testPrimaryIndex(String tableName, int primaryIndex) {
-		final var call = "getPrimaryIndex() yields %s".formatted(primaryIndex);
+		final var call = "getPrimaryIndex()";
 		logCall(tableName, call);
 
-		return dynamicTest(call, () -> {
+		return dynamicTest("getPrimaryIndex() yields %s".formatted(primaryIndex), () -> {
 			assertTimeout(ofMillis(TIMEOUT_MILLIS), () -> {
 				assertEquals(
 					primaryIndex,
