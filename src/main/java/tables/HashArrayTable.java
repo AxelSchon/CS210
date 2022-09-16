@@ -13,13 +13,12 @@ public class HashArrayTable extends Table {
 	private Object[] array;
 	private int size;
 	private int fingerprint;
-	// private int contamination; // OA
+	private int contamination;
 
 	// constants
 	private static final int MIN_CAPACITY = 19; // prime number < 20
-	private static final int LOAD_FACTOR_BOUND = 5; // SC
-	// private static final double LOAD_FACTOR_BOUND = 0.75; // OA
-	// private static final Object TOMBSTONE = new Object(); // OA
+	private static final double LOAD_FACTOR_BOUND = 0.75;
+	private static final Object TOMBSTONE = new Object();
 
 	/**
 	 * Creates a table and initializes the data structure.
@@ -36,66 +35,144 @@ public class HashArrayTable extends Table {
 		setPrimaryIndex(primaryIndex);
 
 		clear();
-
 	}
 
 	@Override
 	public void clear() {
 		array = new Object[MIN_CAPACITY];
 		size = 0;
+		contamination = 0;
 		fingerprint = 0;
-		// contamination = 0; // OA
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean put(List<Object> row) {
 		row = sanitizeRow(row);
-
 		Object key = row.get(getPrimaryIndex());
 		final int hash = hashFunction1(key);
-		final int c = hashFunction2(key); // DH: step size
 
-		int i = wrap(hash);
-		//chain = array[i]
-		for (int j = 0; j < LOAD_FACTOR_BOUND; j++) {
-			//chain.get(j)
+		int t = -1;
+		for (int j = 0; j < array.length; j++) {
+			int i = wrap(hash + (j % 2 == 0 ? j * j : -j * j));
 
-			List<Object> old = (List<Object>) array[i];
-
-			// for separate chaining look at chain[i] instead of array[i]
-			if (array[i] == null) { // miss
-				array[i] = row;
-				size++;
-				if (old != null) {
-					fingerprint += row.hashCode() - old.hashCode();
+			if (array[i] == TOMBSTONE) {
+				// if t has never been assigned an index
+				if (t == -1) {
+					// then update t to match
+					t = i;
 				}
+				continue;
 
-				//if necessary, rehash
+			}
+
+			if (array[i] == null) { // miss
+				if (t == -1) {
+					// if t has never been assigned an index
+					//	 store the row at position i
+					array[i] = row;
+				}
+				// otherwise, t is a recycling location
+				else {
+					// store the row at position t
+					array[t] = row;
+					// adjust the metadata
+					//	 contamination decreases by 1
+					contamination--;
+
+				}
+				// adjust the metadata
+				//	 size increases by 1 (common)
+				//	 fingerprint increases (common)
+				size++;
+				fingerprint += row.hashCode();
+
+				if (loadFactor() > LOAD_FACTOR_BOUND)
+					rehash();
 
 				return false;
 			}
 
-			if (old.get(getPrimaryIndex()).equals(key)) { // hit
-				array[i] = row;
-				size++;
-				if (old != null) {
-					fingerprint += row.hashCode() - old.hashCode();
+			var old = (List<Object>) array[i];
+			if (old.get(getPrimaryIndex()).equals(key)) {//hit
+				//if t has never been assigned an index
+				if (t == -1) {
+					//		update the row at position i with the new row
+					array[i] = row;
 				}
+
+				// otherwise, t is a recycling location
+				else {
+					//		replace the tombstone at position t with the row
+					array[t] = row;
+					//		replace the old row at position i with a tombstone
+					array[i] = TOMBSTONE;
+				}
+				// adjust the metadata
+				//	 fingerprint increases/decreases (common)
+				fingerprint += row.hashCode() - old.hashCode();
 				return true;
 			}
+			// NOT YET A MISS OR HIT, SO CONTINUE
 		}
-		return false;
+		throw new IllegalStateException();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public boolean remove(Object key) {
-		return false;
+		final int hash = hashFunction1(key);
+
+		//think of list<Object> as row
+		for (int j = 0; j < array.length; j++) {
+			int i = wrap(hash + (j % 2 == 0 ? j * j : -j * j));
+
+			if (array[i] == TOMBSTONE)
+				continue;
+
+			if (array[i] == null)  // miss
+				return false;
+
+			var old = (List<Object>) array[i];
+			if (old.get(getPrimaryIndex()).equals(key)) { // HIT
+				// replace the old row at position i with a tombstone
+				array[i] = TOMBSTONE;
+				// adjust the metadata
+				//		size decreases by 1
+				//		contamination increases by one
+				//		fingerprint decreases (common)
+				size--;
+				contamination++;
+				fingerprint -= old.hashCode();
+				return true;
+			}
+			// NOT YET A MISS OR HIT, SO CONTINUE
+		}
+		throw new IllegalStateException();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public List<Object> get(Object key) {
-		return null;
+		final int hash = hashFunction1(key);
+
+		//think of list<Object> as row
+		for (int j = 0; j < array.length; j++) {
+			int i = wrap(hash + (j % 2 == 0 ? j * j : -j * j));
+
+			if (array[i] == TOMBSTONE)
+				continue;
+
+			if (array[i] == null)  // miss
+				return null;
+
+			var old = (List<Object>) array[i];
+			if (old.get(getPrimaryIndex()).equals(key)) { // HIT
+				return old;
+			}
+			// NOT YET A MISS OR HIT, SO CONTINUE
+		}
+		throw new IllegalStateException();
 	}
 
 	@Override
@@ -108,14 +185,68 @@ public class HashArrayTable extends Table {
 		return array.length;
 	}
 
-	/**
-	 * OA @ Override public double loadFactor() { return (double) (size +
-	 * contamination / (double) array.length; }
-	 */
-
 	@Override
 	public double loadFactor() {
-		return (double) size / (double) array.length;
+		return (double) (size + contamination) / (double) array.length;
+	}
+
+	@SuppressWarnings("unchecked")
+	public void rehash() {
+
+		// let backup reference point to existing array
+		var backup = array;
+
+		// reassign array reference to point to
+		// 		a new array which is roughly twice as large 
+		//		but still a valid prime number (based on CRT)
+		//		by find nextPrime from current capacity
+		array = new Object[nextPrime(backup.length)];
+
+		// reset all metadata
+		size = 0;
+		contamination = 0;
+		fingerprint = 0;
+
+		// for each row (not a null or tombstone)in the table:
+		//		call put with that row
+		for (int j = 0; j < backup.length; j++) {
+			if (backup[j] != null && backup[j] != TOMBSTONE) {
+				put((List<Object>) backup[j]);
+			}
+		}
+	}
+
+	private int nextPrime(int prev) {
+		// let next prime number (represented by next variable) be twice the prev plus 1
+		int next = (prev * 2) + 1;
+		// ASQP or in general:
+		// if not the case that next modulo 4 is congruent to 3
+		if (!(next % 4 == 3)) {
+			// step next up by 2
+			next += 2;
+		}
+		// while it's not the case that next isPrime:
+		while (!isPrime(next)) {
+			//step next up by 4
+			next += 4;
+		}
+
+		return next;
+	}
+
+	private boolean isPrime(int number) {
+		double sqrt = Math.sqrt(number);
+		// for each factor of the number: from 3 up to and including the square root (compute before loop) stepping up by 2 each time
+		for (int i = 3; i <= sqrt; i += 2) {
+			//if number is divisible by the factor:
+			if (number % i == 0) {
+				//return false
+				return false;
+			}
+		}
+		//return true
+		return true;
+
 	}
 
 	private static int hashFunction1(Object key) {
@@ -165,6 +296,36 @@ public class HashArrayTable extends Table {
 
 	@Override
 	public Iterator<List<Object>> iterator() {
-		return null;
+		return new Iterator<>() {
+
+			//initialize loop control
+			int index = 0;// initialize to skip(0)
+
+			//seperate chainging: everytime chain_index increments, set row_index to 0;
+			private void skip(int i) { // OA
+				//finds the next actual row after i 
+				// returns that index
+			}
+
+			@Override
+			public boolean hasNext() { // Maintenance condition
+				// answer the question index valid? if so, yes. otherwise, no.
+				// not do any mutations
+				return index < array.length;
+			}
+
+			@Override
+			public List<Object> next() { // body, incrementation
+				// handle all mutations
+				// answer the question what is the next thing
+
+				//temp copy of row
+				//set index to skip(index+1)
+				//return the row
+
+				return null;
+			}
+
+		};
 	}
 }
