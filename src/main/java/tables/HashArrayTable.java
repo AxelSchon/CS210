@@ -299,31 +299,35 @@ public class HashArrayTable extends Table {
 		return new Iterator<>() {
 
 			//initialize loop control
-			int index = 0;// initialize to skip(0)
-
-			//seperate chainging: everytime chain_index increments, set row_index to 0;
-			private void skip(int i) { // OA
-				//finds the next actual row after i 
-				// returns that index
-			}
+			int index = skip(0); // first valid index
 
 			@Override
 			public boolean hasNext() { // Maintenance condition
 				// answer the question index valid? if so, yes. otherwise, no.
-				// not do any mutations
 				return index < array.length;
 			}
 
 			@Override
 			public List<Object> next() { // body, incrementation
+
 				// handle all mutations
 				// answer the question what is the next thing
-
 				//temp copy of row
+				var temp = get(array[index]);
 				//set index to skip(index+1)
+				index = skip(index + 1);
 				//return the row
+				return temp;
 
-				return null;
+			}
+
+			private int skip(int i) { // OA
+				//finds the next actual row after i (if i is invalid)
+				while (array[i] == null || array[i] == TOMBSTONE) {
+					i++;
+				}
+				// returns that index
+				return i;
 			}
 
 		};
