@@ -307,13 +307,12 @@ public class HashArrayTable extends Table {
 				return index < array.length;
 			}
 
+			@SuppressWarnings("unchecked")
 			@Override
 			public List<Object> next() { // body, incrementation
-
-				// handle all mutations
 				// answer the question what is the next thing
 				//temp copy of row
-				var temp = get(array[index]);
+				var temp = (List<Object>) array[index];
 				//set index to skip(index+1)
 				index = skip(index + 1);
 				//return the row
@@ -322,11 +321,13 @@ public class HashArrayTable extends Table {
 			}
 
 			private int skip(int i) { // OA
-				//finds the next actual row after i (if i is invalid)
-				while (array[i] == null || array[i] == TOMBSTONE) {
-					i++;
+				//check to make sure not going outside of bounds
+				if (i < array.length) {
+					//finds the next actual row after i (if i is invalid)
+					while ((i < array.length) && (array[i] == null || array[i] == TOMBSTONE)) {
+						i++;
+					}
 				}
-				// returns that index
 				return i;
 			}
 
