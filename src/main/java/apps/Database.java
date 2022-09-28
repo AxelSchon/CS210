@@ -110,8 +110,8 @@ public class Database implements Closeable {
 	 * @throws Exception
 	 *
 	 * @throws QueryError
-	 * if some driver can't parse or execute the query,
-	 * or if no driver recognizes the query.
+	 *                    if some driver can't parse or execute the query,
+	 *                    or if no driver recognizes the query.
 	 */
 	public Object interpret(String query) throws QueryError {
 		Driver echo = new Echo();
@@ -135,6 +135,6 @@ public class Database implements Closeable {
 	 */
 	@Override
 	public void close() throws IOException {
-
+		// don't need to implement
 	}
 }
