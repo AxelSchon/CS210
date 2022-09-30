@@ -1,141 +1,139 @@
 package grade;
 
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 import static sql.FieldType.*;
 
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.TestFactory;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.TestReporter;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
-import sql.FieldType;
 import tables.HashArrayTable;
 
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class Module1 extends AbstractDFS {
+@TestInstance(Lifecycle.PER_CLASS)
+@Execution(ExecutionMode.CONCURRENT)
+final class Module1 {
+	static final int CALLS_PER_TABLE = 2000;
+	static final double TARGET_HIT_RATE = .60;
+
+	int graded, earned;
+
 	@BeforeAll
-	public static void setup() {
-		module_tag = "M1";
-		calls_per_table = 2000;
+	void startGrade() {
+		graded = 0;
+		earned = 0;
 	}
 
-	@TestFactory
-    @DisplayName("Prerequisites")
-    @Order(0)
-    public final Stream<DynamicTest> audits() {
-		return Stream.of(
-			dynamicTest("Constructor (4-ary)", () -> {
-				ungraded++;
-				try {
-					actualTable = firstTestConstructor(() -> {
-						return new HashArrayTable(
-							"m1_table00",
-							List.of("a", "b", "c"),
-							List.of(STRING, INTEGER, BOOLEAN),
-							0
-						);
-			        });
+	@Nested
+	@DisplayName("m1_table1 [3 known columns]")
+	class TableContainer1 extends HashArrayTableContainer {
+		@BeforeAll
+		void defineTable() {
+			tableName = "m1_table1";
+			columnNames = List.of("ps", "i", "b");
+			columnTypes = List.of(STRING, INTEGER, BOOLEAN);
+			primaryIndex = 0;
+		}
+	}
+
+	@Nested
+	@DisplayName("m1_table2 [1 to 5 random columns]")
+	class TableContainer2 extends HashArrayTableContainer {
+		@BeforeAll
+		void defineTable() {
+			tableName = "m1_table2";
+			var width = RNG.nextInt(1, 5+1);
+			primaryIndex = RNG.nextInt(width);
+			columnNames = names(width);
+			columnTypes = types(width);
+		}
+	}
+
+	@Nested
+	@DisplayName("m1_table3 [5 to 15 random columns]")
+	class TableContainer3 extends HashArrayTableContainer {
+		@BeforeAll
+		void defineTable() {
+			tableName = "m1_table3";
+			var width = RNG.nextInt(5, 15+1);
+			primaryIndex = RNG.nextInt(width);
+			columnNames = names(width);
+			columnTypes = types(width);
+		}
+	}
+
+	abstract class HashArrayTableContainer extends AbstractTableContainer {
+		@DisplayName("New Table")
+		@TestFactory
+		@Execution(ExecutionMode.SAME_THREAD)
+		Stream<DynamicTest> testNewTable() {
+			logStart();
+
+			subject = testConstructor(() -> {
+				return new HashArrayTable(tableName, columnNames, columnTypes, primaryIndex);
+	        }, List.of(
+    			"tables",
+    			"java.lang",
+    			"java.util.ImmutableCollections"
+    		));
+
+			control = new ControlTable(tableName, columnNames, columnTypes, primaryIndex);
+
+			return IntStream.range(0, CALLS_PER_TABLE).mapToObj(i -> {
+				if (i == 0)
+					return testTableName();
+				else if (i == 1)
+					return testColumnNames();
+				else if (i == 2)
+					return testColumnTypes();
+				else if (i == 3)
+					return testPrimaryIndex();
+				else if (i == 4 || i == CALLS_PER_TABLE-1)
+					return testClear();
+				else if (i % 20 == 0 || i == CALLS_PER_TABLE-2)
+					return testIterator();
+				else {
+					var p = RNG.nextDouble();
+					var hitting = hitRate() < TARGET_HIT_RATE;
+					if (p < 0.85)
+						return testPut(hitting, true);
+					else if (p < 0.95)
+						return testRemove(hitting, true);
+					else
+						return testGet(hitting);
 				}
-				catch (Exception e) {
-					fail("Unexpected exception with 4-ary constructor", e);
-				}
-    		}),
-			dynamicTest("Forbidden Classes", () -> {
-				ungraded++;
-				if (actualTable == null)
-					fail("Depends on constructor prerequisite");
+			});
+		}
 
-				testForbiddenClasses(
-					actualTable,
-					HashArrayTable.class,
-					List.of(
-						"tables",
-						"java.lang",
-						"java.util.ImmutableCollections"
-					)
-				);
-    		})
-    	);
-    }
-
-	@TestFactory
-	@DisplayName("Create m1_table01 [example columns]")
-	@Order(1)
-	public final Stream<DynamicTest> createTable01() {
-		tested_tables++;
-		return testTable(
-			"m1_table01",
-			List.of("ps", "i", "b"),
-			List.of(STRING, INTEGER, BOOLEAN),
-			0
-		);
+		@AfterAll
+		@ResourceLock(value = "graded")
+		@ResourceLock(value = "earned")
+		void accrueGrade() {
+			graded += CALLS_PER_TABLE;
+			earned += passed;
+		}
 	}
 
-	@TestFactory
-	@DisplayName("Create m1_table02 [1 to 5 random columns]")
-	@Order(1)
-	public final Stream<DynamicTest> createTable02() {
-		tested_tables++;
-		return makeTable("m1_table02", 1, 5);
-	}
+	@AfterAll
+	void reportGrade(TestReporter reporter) {
+		var module = this.getClass().getSimpleName();
+		var tag = "%s%s".formatted(module.charAt(0), module.charAt(module.length() - 1));
+		var pct = (int) Math.ceil(earned / (double) graded * 100);
 
-	@TestFactory
-	@DisplayName("Create m1_table03 [5 to 15 random columns]")
-	@Order(1)
-	public final Stream<DynamicTest> createTable03() {
-		tested_tables++;
-		return makeTable("m1_table03", 5, 15);
-	}
+		System.out.printf("[%s PASSED %d%% OF UNIT TESTS]\n", tag, pct);
 
-	@Override
-	public final Stream<DynamicTest> testTable(String tableName, List<String> columnNames, List<FieldType> columnTypes, int primaryIndex) {
-		startLog(tableName);
-
-		actualTable = firstTestConstructor(() -> {
-			return new HashArrayTable(
-				tableName,
-				columnNames,
-				columnTypes,
-				primaryIndex
-			);
-        });
-
-		logRandomSeed();
-		logConstructor("HashArrayTable", tableName, columnNames, columnTypes, primaryIndex);
-
-		expectedTable = new ProxyTable(tableName, columnNames, columnTypes, primaryIndex);
-
-		return IntStream.range(0, calls_per_table).mapToObj(i -> {
-			if (i == 0)
-				return testTableName(tableName);
-			else if (i == 1)
-				return testColumnNames(tableName, columnNames);
-			else if (i == 2)
-				return testColumnTypes(tableName, columnTypes);
-			else if (i == 3)
-				return testPrimaryIndex(tableName, primaryIndex);
-
-			if (i == 4 || i == calls_per_table-1)
-				return testClear(tableName, columnNames, columnTypes, primaryIndex);
-
-			if (i % 20 == 0 || i == calls_per_table-2)
-				return testIterator();
-
-			var p = RNG.nextDouble();
-			if (p < 0.85)
-				return testPut(tableName, columnTypes, primaryIndex);
-			else if (p < 0.95)
-				return testRemove(tableName, columnTypes, primaryIndex);
-			else
-				return testGet(tableName, columnTypes, primaryIndex);
-		});
+		reporter.publishEntry("Tag", tag);
+		reporter.publishEntry("Grade", String.valueOf(pct));
 	}
 }

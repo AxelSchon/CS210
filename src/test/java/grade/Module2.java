@@ -1,7 +1,5 @@
 package grade;
 
-import static sql.FieldType.*;
-
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -10,22 +8,24 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestFactory;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.TestReporter;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
-import tables.SearchTable;
+import tables.HashFileTable;
 
-@Deprecated
 @TestInstance(Lifecycle.PER_CLASS)
 @Execution(ExecutionMode.CONCURRENT)
-final class Practice1 {
-	static final int CALLS_PER_TABLE = 2000;
+final class Module2 {
+	static final int CALLS_PER_TABLE = 1500;
 	static final double TARGET_HIT_RATE = .60;
 
 	int graded, earned;
@@ -37,62 +37,44 @@ final class Practice1 {
 	}
 
 	@Nested
-	@DisplayName("p1_table1 [3 known columns]")
-	class TableContainer1 extends SearchTableContainer {
+	@DisplayName("m2_table1 [5 to 15 random columns]")
+	class TableContainer1 extends HashFileTableContainer {
 		@BeforeAll
 		void defineTable() {
-			tableName = "p1_table1";
-			columnNames = List.of("ps", "i", "b");
-			columnTypes = List.of(STRING, INTEGER, BOOLEAN);
-			primaryIndex = 0;
-		}
-	}
-
-	@Nested
-	@DisplayName("p1_table2 [1 to 5 random columns]")
-	class TableContainer2 extends SearchTableContainer {
-		@BeforeAll
-		void defineTable() {
-			tableName = "p1_table2";
-			var width = RNG.nextInt(1, 5+1);
+			tableName = "m2_table1";
+			var width = RNG.nextInt(1, 15+1);
 			primaryIndex = RNG.nextInt(width);
 			columnNames = names(width);
 			columnTypes = types(width);
 		}
 	}
 
-	@Nested
-	@DisplayName("p1_table3 [5 to 15 random columns]")
-	class TableContainer3 extends SearchTableContainer {
-		@BeforeAll
-		void defineTable() {
-			tableName = "p1_table3";
-			var width = RNG.nextInt(5, 15+1);
-			primaryIndex = RNG.nextInt(width);
-			columnNames = names(width);
-			columnTypes = types(width);
-		}
-	}
+	@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+	abstract class HashFileTableContainer extends AbstractTableContainer {
+		static final List<String> exempt = List.of(
+			"tables",
+			"java.lang",
+			"java.util.ImmutableCollections",
+			"java.nio",
+			"sun.nio.ch",
+			"sun.nio.cs",
+			"sun.nio.fs"
+		);
 
-	abstract class SearchTableContainer extends AbstractTableContainer {
+		@Order(1)
 		@DisplayName("New Table")
 		@TestFactory
 		@Execution(ExecutionMode.SAME_THREAD)
 		Stream<DynamicTest> testNewTable() {
-			logStart();
+			logStart("new");
 
 			subject = testConstructor(() -> {
-				return new SearchTable(tableName, columnNames, columnTypes, primaryIndex);
-	        }, List.of(
-				"tables",
-				"java.lang",
-				"java.util.ImmutableCollections",
-				"java.util.TreeMap"
-			));
+				return new HashFileTable(tableName, columnNames, columnTypes, primaryIndex);
+	        }, exempt);
 
 			control = new ControlTable(tableName, columnNames, columnTypes, primaryIndex);
 
-			return IntStream.range(0, CALLS_PER_TABLE).mapToObj(i -> {
+			return IntStream.range(0, CALLS_PER_TABLE/2).mapToObj(i -> {
 				if (i == 0)
 					return testTableName();
 				else if (i == 1)
@@ -101,17 +83,48 @@ final class Practice1 {
 					return testColumnTypes();
 				else if (i == 3)
 					return testPrimaryIndex();
-				else if (i == 4 || i == CALLS_PER_TABLE-1)
+				else if (i == 4)
 					return testClear();
-				else if (i % 20 == 0 || i == CALLS_PER_TABLE-2)
+				else if (i % 20 == 0 || i == CALLS_PER_TABLE/2-1)
 					return testIterator();
 				else {
 					var p = RNG.nextDouble();
 					var hitting = hitRate() < TARGET_HIT_RATE;
-					if (p < 0.85)
+					if (p < 0.95)
 						return testPut(hitting, false);
-					else if (p < 0.95)
+					else
 						return testRemove(hitting, false);
+				}
+			});
+		}
+
+		@Order(2)
+		@DisplayName("Existing Table")
+		@TestFactory
+		@Execution(ExecutionMode.SAME_THREAD)
+		Stream<DynamicTest> testExistingTable() {
+			logStart("existing");
+
+			subject = testConstructor(() -> {
+				return new HashFileTable(tableName);
+	        }, exempt);
+
+			return IntStream.range(0, CALLS_PER_TABLE/2).mapToObj(i -> {
+				if (i == 0)
+					return testTableName();
+				else if (i == 1)
+					return testColumnNames();
+				else if (i == 2)
+					return testColumnTypes();
+				else if (i == 3)
+					return testPrimaryIndex();
+				else if (i == 4 || i == CALLS_PER_TABLE/2-1)
+					return testIterator();
+				else {
+					var p = RNG.nextDouble();
+					var hitting = hitRate() < TARGET_HIT_RATE;
+					if (p < 0.95)
+						return testPut(hitting, false);
 					else
 						return testGet(hitting);
 				}

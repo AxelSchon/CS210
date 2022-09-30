@@ -3,7 +3,7 @@
 
 	<groupId>cs210</groupId>
 	<artifactId>project</artifactId>
-	<version>22.8.0</version>
+	<version>22.8.1</version>
 
 	<build>
 		<plugins>
@@ -21,28 +21,18 @@
 				<configuration>
 					<trimStackTrace>true</trimStackTrace>
 					<printSummary>true</printSummary>
+					<properties>
+                    <configurationParameters>
+						junit.jupiter.testinstance.lifecycle.default = per_class
+						junit.jupiter.execution.parallel.enabled = false
+						junit.jupiter.execution.parallel.mode.default = same_thread
+						junit.jupiter.execution.parallel.mode.classes.default = concurrent
+                    </configurationParameters>
+                </properties>
 				</configuration>
 			</plugin>
-			<!-- <plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-site-plugin</artifactId>
-				<version>4.0.0-M1</version>
-			</plugin> -->
 		</plugins>
 	</build>
-
-	<!-- <reporting>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-report-plugin</artifactId>
-				<version>3.0.0-M6</version>
-				<configuration>
-					<showSuccess>true</showSuccess>
-				</configuration>
-			</plugin>
-		</plugins>
-	</reporting> -->
 
 	<dependencies>
 		<dependency>
@@ -60,11 +50,6 @@
 		    <groupId>org.eclipse.parsson</groupId>
 		    <artifactId>parsson</artifactId>
 		</dependency>
-		<!-- <dependency>
-			<groupId>org.glassfish</groupId>
-			<artifactId>jakarta.json</artifactId>
-			<scope>runtime</scope>
-		</dependency> -->
 	</dependencies>
 
 	<dependencyManagement>
@@ -72,7 +57,7 @@
 			<dependency>
 				<groupId>org.junit.jupiter</groupId>
 				<artifactId>junit-jupiter</artifactId>
-				<version>5.8.1</version>
+				<version>5.9.0</version>
 			</dependency>
 			<dependency>
 				<groupId>jakarta.json</groupId>
@@ -84,16 +69,10 @@
 				<artifactId>parsson</artifactId>
 				<version>1.1.1</version>
 			</dependency>
-			<!-- <dependency>
-				<groupId>org.glassfish</groupId>
-				<artifactId>jakarta.json</artifactId>
-				<version>2.0.1</version>
-			</dependency> -->
 		</dependencies>
 	</dependencyManagement>
 
 	<properties>
 		<project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
-		<!-- <project.reporting.outputEncoding>utf-8</project.reporting.outputEncoding> -->
 	</properties>
 </project>
