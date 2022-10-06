@@ -215,7 +215,6 @@ public class HashFileTable extends PrettyTable {
 		// reset the metadata
 		size = 0;
 		fingerprint = 0;
-		recordWidth = 0;
 
 		// writeMetadata to file;
 		writeMetaData();
@@ -392,8 +391,7 @@ public class HashFileTable extends PrettyTable {
 
 			// WRITE STATE
 			var channel = FileChannel.open(file, CREATE, READ, WRITE);
-			var buf = channel.map(READ_WRITE, 0,
-					LENGTH_NAME_BYTE + MAX_STRING_LENGTH + LENGTH_INT_BYTE + MAX_INT_SIZE + BOOLEAN_SIZE);
+			var buf = channel.map(READ_WRITE, 0, recordWidth);
 
 			// for the number of columns
 			for (int i = 0; i < getColumnNames().size(); i++) {
@@ -403,7 +401,7 @@ public class HashFileTable extends PrettyTable {
 				var element = row.get(i);
 
 				if (columnType == FieldType.STRING) {
-					var str = row.toString();
+					var str = element.toString();
 					var chars = str.getBytes(UTF_8);
 					buf.put((byte) chars.length);
 					buf.put(chars);
@@ -415,6 +413,8 @@ public class HashFileTable extends PrettyTable {
 						buf.put((byte) 1);
 					} else if ((boolean) element == false) {
 						buf.put((byte) 0);
+					} else {
+						buf.put((byte) -1);
 					}
 				}
 			}
@@ -444,7 +444,7 @@ public class HashFileTable extends PrettyTable {
 			// READ STATE
 			{
 				var channel = FileChannel.open(file, READ);
-				var buf = channel.map(READ_ONLY, 0, 1 + 127 + 1 + 4 + 1);
+				var buf = channel.map(READ_ONLY, 0, recordWidth);
 
 				for (int i = 0; i < getColumnNames().size(); i++) {
 					// save that columns type
@@ -464,8 +464,13 @@ public class HashFileTable extends PrettyTable {
 						else
 							record.add((int) buf.get());
 					} else if (columnType == FieldType.BOOLEAN) {
-						// TODO check byte to determine boolean
-						record.add(buf.get());
+						var val = buf.get();
+						if (val == 0)
+							record.add(true);
+						else if (val == 1)
+							record.add(false);
+						else
+							record.add(null);
 					}
 					System.out.println(record);
 				}
@@ -487,7 +492,7 @@ public class HashFileTable extends PrettyTable {
 
 	// measure the maximum width of a record
 	//	 need to know columnTypes() to perform
-	//	 looping through each columnYype and asking is it a string? then add this many bytes to record width etc.
+	//	 looping through each columnTyype and asking is it a string? then add this many bytes to record width etc.
 	public void recordWidth() {
 		recordWidth = 0;
 		for (int i = 0; i < getColumnTypes().size(); i++) {
