@@ -23,22 +23,37 @@ public class Console {
 	 * with user input/output.
 	 */
 	public static void main(String[] args) {
-		try (
-			final Database db = new Database(true);
-			final Scanner in = new Scanner(System.in);
-			final PrintStream out = System.out;
-		) {
-			out.print(">> ");
+		try (final Database db = new Database(true);
+				final Scanner in = new Scanner(System.in);
+				final PrintStream out = System.out;) {
 
-			String query = in.nextLine();
-			try {
-				out.println("Result: " + db.interpret(query));
+			{// TODO: make this a loop which stops on input EXIT (case insensitive) (not script, not query)
+				out.print(">> ");
+
+				// 
+				String script = in.nextLine().strip();
+
+				// if input is a comment, skip to next run of REPL
+
+				var queries = script.split(";");
+
+				for (String query : queries) { // must have check for EXIT somewhere inside loop?
+					query = query.strip();
+					// if the query is blank, skip to the next run of the loop ( String should have method for this?)
+
+					// print the query back
+					out.println("Query: " + query); // my code (might be wrong)
+					try {
+						var res = db.interpret(query);
+						// use instance of to check the type
+						// branch accordingly
+						out.println("Result: " + res);
+					} catch (QueryError e) {
+						out.println("Error: " + e);
+					}
+				}
 			}
-			catch (QueryError e) {
-				out.println("Error: " + e);
-			}
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}

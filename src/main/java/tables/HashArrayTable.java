@@ -9,7 +9,7 @@ import sql.FieldType;
 /**
  * Implements a hash-based table using an array data structure.
  */
-public class HashArrayTable extends Table {
+public class HashArrayTable extends PrettyTable {
 	private Object[] array;
 	private int size;
 	private int fingerprint;

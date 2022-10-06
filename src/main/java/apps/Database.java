@@ -6,6 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import drivers.Echo;
+import drivers.Macros;
 import drivers.Range;
 import drivers.ShowTable;
 import sql.Driver;
@@ -36,6 +37,7 @@ public class Database implements Closeable {
 		this.persistent = persistent;
 
 		tables = new LinkedList<>();
+
 	}
 
 	/**
@@ -65,7 +67,11 @@ public class Database implements Closeable {
 	 * @return whether the table was created.
 	 */
 	public boolean create(Table table) {
-		return false;
+		if (exists(table.getTableName()))
+			return false;
+
+		tables.add(table);
+		return true;
 	}
 
 	/**
@@ -76,7 +82,12 @@ public class Database implements Closeable {
 	 * @return the dropped table, if any.
 	 */
 	public Table drop(String tableName) {
-		return null;
+		if (!exists(tableName))
+			return null;
+
+		var table = find(tableName);
+		tables.remove(table);
+		return table;
 	}
 
 	/**
@@ -87,6 +98,9 @@ public class Database implements Closeable {
 	 * @return the named table, if any.
 	 */
 	public Table find(String tableName) {
+		for (Table table : tables)
+			if (table.getTableName().equals(tableName))
+				return table;
 		return null;
 	}
 
@@ -98,7 +112,7 @@ public class Database implements Closeable {
 	 * @return whether the named table exists.
 	 */
 	public boolean exists(String tableName) {
-		return false;
+		return find(tableName) != null;
 	}
 
 	/**
@@ -114,6 +128,8 @@ public class Database implements Closeable {
 	 *                    or if no driver recognizes the query.
 	 */
 	public Object interpret(String query) throws QueryError {
+
+		// TODO make a list of new driver objects, loop through it
 		Driver echo = new Echo();
 		if (echo.parse(query))
 			return echo.execute(null);
@@ -125,6 +141,10 @@ public class Database implements Closeable {
 		Driver show = new ShowTable();
 		if (show.parse(query))
 			return show.execute(this);
+
+		Driver macro = new Macros();
+		if (macro.parse(query))
+			return macro.execute(this);
 
 		throw new QueryError("Unrecognized query");
 	}

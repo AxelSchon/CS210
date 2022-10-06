@@ -33,12 +33,10 @@ import tables.Table;
  *       see RANGE 5
  */
 public class Range implements Driver {
-	private static final Pattern pattern = Pattern.compile(
-		"RANGE\\s+([0-9]+)(?:\\s+AS\\s+([a-z][a-z0-9_]*))?",
-		Pattern.CASE_INSENSITIVE
-	);
+	private static final Pattern pattern = Pattern.compile("RANGE\\s+([0-9]+)(?:\\s+AS\\s+([a-z][a-z0-9_]*))?",
+			Pattern.CASE_INSENSITIVE);
 
-	private int upper;
+	private int upper; // upper is upper bound of what user inputed
 	private String name;
 
 	@Override
@@ -49,8 +47,7 @@ public class Range implements Driver {
 
 		try {
 			upper = Integer.parseInt(matcher.group(1));
-		}
-		catch (NumberFormatException e) {
+		} catch (NumberFormatException e) {
 			throw new QueryError("Integers must be within signed 32-bit bounds", e);
 		}
 
@@ -66,12 +63,7 @@ public class Range implements Driver {
 
 	@Override
 	public Object execute(Database db) {
-		Table resultSet = new SearchTable(
-			"_range",
-			List.of(name),
-			List.of(INTEGER),
-			0
-		);
+		Table resultSet = new SearchTable("_range", List.of(name), List.of(INTEGER), 0);
 
 		for (int i = 0; i < upper; i++) {
 			List<Object> row = new LinkedList<>();
