@@ -157,16 +157,20 @@ public class HashFileTable extends PrettyTable {
 		} else { // hit
 			// delete the corresponding file
 			try {
-				// should this be pathOf(digest)
-				Files.delete(pathOf(digest));
+				if (Files.exists(pathOf(digest))) {
+					//replace with delete()?;
+					if (Files.exists(pathOf(digest))) {
+						Files.walk(pathOf(digest)).sorted(Comparator.reverseOrder()).map(path -> path.toFile())
+								.forEach(file -> file.delete());
+					}
+				}
+				size--;
+				fingerprint -= row.hashCode();
+				writeMetaData();
+				return true;
 			} catch (IOException e) {
 				throw new RuntimeException("Could not remove file", e);
 			}
-			size--;
-			fingerprint -= row.hashCode();
-			recordWidth(); // change so that doesn't have to loop over entire array
-			writeMetaData();
-			return true;
 		}
 	}
 
@@ -360,7 +364,7 @@ public class HashFileTable extends PrettyTable {
 				var buf = schema.map(READ_WRITE, 0,
 						MAX_INT_SIZE * 2 + (LENGTH_NAME_BYTE + MAX_COL_NAME_LENGTH + LENGTH_TYPE_BYTE) * MAX_COL_COUNT);
 
-				System.out.println(buf.getInt());
+				size = buf.getInt();
 				setPrimaryIndex(buf.getInt());
 
 				for (int i = 0; i < getColumnNames().size(); i++) {
@@ -401,11 +405,13 @@ public class HashFileTable extends PrettyTable {
 				var element = row.get(i);
 
 				if (columnType == FieldType.STRING) {
-					var str = element.toString();
-					var chars = str.getBytes(UTF_8);
-					buf.put((byte) chars.length);
-					buf.put(chars);
-				} else if (columnType == FieldType.INTEGER) { // need if statement for					
+					if (element != null) {
+						var str = element.toString();
+						var chars = str.getBytes(UTF_8);
+						buf.put(chars);
+					} else
+						buf.put((byte) -1);
+				} else if (columnType == FieldType.INTEGER) { // need if statement for	
 					buf.put((byte) Short.BYTES);
 					buf.putShort((short) 1);
 				} else if (columnType == FieldType.BOOLEAN) {
@@ -452,28 +458,34 @@ public class HashFileTable extends PrettyTable {
 
 					if (columnType == FieldType.STRING) {
 						var len = buf.get();
-						var chars = new byte[len];
-						buf.get(chars);
-						record.add(new String(chars, UTF_8));
+						if (len == -1)
+							record.add(null);
+						else {
+							var chars = new byte[len];
+							buf.get(chars);
+							record.add(new String(chars, UTF_8));
+						}
 					} else if (columnType == FieldType.INTEGER) {
-						var size = buf.get();
-						if (size == 4)
+						var bytes = buf.get();
+						if (bytes == 4)
 							record.add(buf.getInt());
-						else if (size == 2)
+						else if (bytes == 2)
 							record.add((int) buf.getShort());
-						else
+						else if (bytes == 1)
 							record.add((int) buf.get());
+						else
+							record.add(null);
 					} else if (columnType == FieldType.BOOLEAN) {
 						var val = buf.get();
 						if (val == 0)
-							record.add(true);
-						else if (val == 1)
 							record.add(false);
+						else if (val == 1)
+							record.add(true);
 						else
 							record.add(null);
 					}
-					System.out.println(record);
 				}
+				System.out.println(record);
 				return record;
 				//ensure called with valid row
 			}
