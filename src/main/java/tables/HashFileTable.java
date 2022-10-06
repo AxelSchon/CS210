@@ -408,19 +408,22 @@ public class HashFileTable extends PrettyTable {
 					if (element != null) {
 						var str = element.toString();
 						var chars = str.getBytes(UTF_8);
+						buf.put((byte) chars.length);
 						buf.put(chars);
 					} else
 						buf.put((byte) -1);
 				} else if (columnType == FieldType.INTEGER) { // need if statement for	
+
 					buf.put((byte) Short.BYTES);
 					buf.putShort((short) 1);
+
 				} else if (columnType == FieldType.BOOLEAN) {
-					if ((boolean) element == true) {
+					if (element == null) {
+						buf.put((byte) -1);
+					} else if ((boolean) element == true) {
 						buf.put((byte) 1);
 					} else if ((boolean) element == false) {
 						buf.put((byte) 0);
-					} else {
-						buf.put((byte) -1);
 					}
 				}
 			}
