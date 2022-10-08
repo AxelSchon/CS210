@@ -127,7 +127,7 @@ public class HashFileTable extends PrettyTable {
 
 		// check to make sure that what comes back from the put method is the correct row
 		var old = readRecord(digest); // old record. To identify hit/miss
-		System.out.println(old);
+		//System.out.println(old);
 
 		writeRecord(digest, row); // write record for the digest of row
 
@@ -163,10 +163,8 @@ public class HashFileTable extends PrettyTable {
 
 			try {// delete the corresponding file
 				if (Files.exists(pathOf(digest))) {
-					if (Files.exists(pathOf(digest))) {
-						Files.walk(pathOf(digest)).sorted(Comparator.reverseOrder()).map(path -> path.toFile())
-								.forEach(file -> file.delete());
-					}
+					Files.walk(pathOf(digest)).sorted(Comparator.reverseOrder()).map(path -> path.toFile())
+							.forEach(file -> file.delete());
 				}
 				// update metaData for hit
 				size--;
@@ -200,21 +198,17 @@ public class HashFileTable extends PrettyTable {
 	private void truncate() {
 		// resolve the state dir
 		var state = root.resolve("state");
-		// if state dir  is not there yet, just quit this method
-		if (Files.exists(state)) {
-			;
-		}
-		// if there is, recursively delete the state folder using a walk (as in the example)
-		else {
-			try {
-				if (Files.exists(state)) {
-					Files.walk(state).sorted(Comparator.reverseOrder()).map(path -> path.toFile())
-							.forEach(file -> file.delete());
-				}
-			} catch (IOException e) {
-				throw new RuntimeException("State file I/O error", e);
+
+		try {
+			// if state dir exists, recursively delete the state folder using a walk (as in the example)
+			if (Files.exists(state)) {
+				Files.walk(state).sorted(Comparator.reverseOrder()).map(path -> path.toFile())
+						.forEach(file -> file.delete());
 			}
+		} catch (IOException e) {
+			throw new RuntimeException("State file I/O error", e);
 		}
+		// if state dir  is not there yet, just quit this method
 	}
 
 	@Override
@@ -334,10 +328,10 @@ public class HashFileTable extends PrettyTable {
 			var buf = schema.map(READ_WRITE, 0,
 					MAX_INT_SIZE * 2 + (LENGTH_NAME_BYTE + MAX_COL_NAME_LENGTH + LENGTH_TYPE_BYTE) * MAX_COL_COUNT);
 
-			buf.putInt(getColumnNames().size()); // put into buffer the number of columns
+			buf.putInt(getColumnTypes().size()); // put into buffer the col count
 			buf.putInt(getPrimaryIndex()); // put into buffer the primary index
 
-			for (int i = 0; i < getColumnNames().size(); i++) { // for the number of columns 
+			for (int i = 0; i < getColumnTypes().size(); i++) { // for the number of columns 
 				var name = getColumnNames().get(i); // name of column
 				var chars = name.getBytes(UTF_8); // characters the name is composed of
 				buf.put((byte) chars.length); // put into buffer the length of the byte array
@@ -348,6 +342,7 @@ public class HashFileTable extends PrettyTable {
 				buf.put((byte) type.getTypeNumber()); // put the type number (1->String, 2->integer, 3->boolean)	
 
 			}
+
 		} catch (IOException e) {
 			throw new RuntimeException("Schema file I/O error", e);
 		}
@@ -356,24 +351,27 @@ public class HashFileTable extends PrettyTable {
 	public void readSchema() {
 		var colNames = new ArrayList<String>();
 		var colTypes = new ArrayList<FieldType>();
+//		List<String> colNames = null;
+//		List<FieldType> colTypes = null;
 
 		try {
 			var buf = schema.map(READ_WRITE, 0,
 					MAX_INT_SIZE * 2 + (LENGTH_NAME_BYTE + MAX_COL_NAME_LENGTH + LENGTH_TYPE_BYTE) * MAX_COL_COUNT);
 
 			size = buf.getInt(); // set column count
-			setPrimaryIndex(buf.getInt()); // set primary index
+			var primaryIndex = buf.getInt(); // store primary index (set after columnNames and ColumnTypes has been set)
 
-			for (int i = 0; i < getColumnTypes().size(); i++) {
+			for (int i = 0; i < size; i++) {
 				var length = buf.get(); // get length of byte array
 				var chars = new byte[length]; // create byte array of required size
 				buf.get(chars); // fill up newly created byte array
 				colNames.add(new String(chars, UTF_8)); // create string from byte array and add to colNames
 				buf.get(new byte[MAX_COL_NAME_LENGTH - chars.length]); // fill up byte array with size equal to amount of padding left over
-				colTypes.add(i, FieldType.valueOf(buf.get())); // get field type number and convert: (1->String, 2->Integer, 3->Boolean)
+				colTypes.add(FieldType.valueOf(buf.get())); // get field type number and convert: (1->String, 2->Integer, 3->Boolean)
 			}
 			setColumnNames(colNames); // set column names
 			setColumnTypes(colTypes); // set column types
+			setPrimaryIndex(primaryIndex); // set primary index
 		} catch (IOException e) {
 			throw new RuntimeException("Schema file I/O error", e);
 		}
@@ -395,37 +393,40 @@ public class HashFileTable extends PrettyTable {
 					if (element != null) {
 						var str = element.toString(); // String in row
 						var chars = str.getBytes(UTF_8); // characters the string is composed of
-						buf.put((byte) chars.length); // puts into the buffer the length of the byte array
+						buf.put((byte) chars.length); // puts into the buffer the length of the byte array (String prefix)
 						buf.put(chars); // put bytes of the character array (write out characters themselves)
 					} else
-						buf.put((byte) -1); // if null, put -1
+						buf.put((byte) -1); // if null, set prefix to -1
 
 				} else if (columnType == FieldType.INTEGER) {
 					if (element != null) {
-						if ((int) element <= 127) { // if element is an Integer which can be stored in one byte:
+						if (((int) element) <= (Byte.MAX_VALUE) && ((int) element) >= (Byte.MIN_VALUE)) { // if element is an Integer which can be stored in one byte:
 							buf.put((byte) Byte.BYTES); // set prefix to 1
 							buf.put(((Integer) element).byteValue()); // store element as a byte
-						} else if ((int) element <= 32767) { // if element is an Integer which is larger than one byte but can be stored in two bytes:
+						} else if (((int) element) <= (Short.MAX_VALUE) && ((int) element) >= (Short.MIN_VALUE)) { // if element is an Integer which is larger than one byte but can be stored in two bytes:
 							buf.put((byte) Short.BYTES); // set prefix to 2
 							buf.putShort(((Integer) element).shortValue()); // store element as a short
-						} else if ((int) element <= 200000000) { // if element is an Integer which can not be stored in two bytes:
+						} else { // (Integer.MIN_VALUE <= (int) element && (int) element <= Integer.MAX_VALUE) { // if element is an Integer which can not be stored in two bytes:
 							buf.put((byte) Integer.BYTES); // set prefix to 4
 							buf.putInt(((Integer) element).intValue()); // store element as an int
 						}
 					} else
-						buf.put((byte) -1); // if null, put -1
+						buf.put((byte) -1); // if null, set prefix to -1
 
-				} else if (columnType == FieldType.BOOLEAN) {
-					if (element == null) {
-						buf.put((byte) -1); // if null, put 1
-					} else if ((boolean) element == true) { // if element is true:
-						buf.put((byte) 1); // put 1
-					} else if ((boolean) element == false) { // if element is false:
-						buf.put((byte) 0); // put 0
-					}
+				} else { // (columnType == FieldType.BOOLEAN) {
+					if (element != null) {
+						if ((boolean) element == true) { // if element is true:
+							buf.put((byte) 1); // put 1
+						} else if ((boolean) element == false) { // if element is false:
+							buf.put((byte) 0); // put 0
+						}
+					} else
+						buf.put((byte) -1); // if null, set prefix to  -1
 				}
 			}
-		} catch (IOException e) {
+		} catch (
+
+		IOException e) {
 			throw new RuntimeException("State file I/O error", e);
 		}
 	}
@@ -443,12 +444,13 @@ public class HashFileTable extends PrettyTable {
 			var channel = FileChannel.open(file, READ); // open given path. Create new file if it doesn't exist or reopen if it does.
 			var buf = channel.map(READ_ONLY, 0, recordWidth); // // map for size of the variable width record
 
-			for (int i = 0; i < getColumnNames().size(); i++) { // for number of columns
+			for (int i = 0; i < getColumnTypes().size(); i++) { // for number of columns
 				var columnType = getColumnTypes().get(i); // save the column type
 
 				if (columnType == FieldType.STRING) { // if columnType is a string:
 					var len = buf.get(); // get length of string
-					if (len == -1) // if length of string is null:
+
+					if (len == (byte) -1) // if length of string is null:
 						record.add(null); // add null to the record
 					else { // otherwise
 						var chars = new byte[len]; // create new byte array of size len
@@ -457,25 +459,27 @@ public class HashFileTable extends PrettyTable {
 					}
 				} else if (columnType == FieldType.INTEGER) { // if column type is an Integer:
 					var width = buf.get(); // get Integer field prefix 
-					if (width == 4) // if prefix determines Integer is an int
+
+					if (width == (byte) 4) // if prefix determines Integer is an int
 						record.add(buf.getInt()); // read in 4 bytes
-					else if (width == 2) // if prefix determines Integer is a short
+					else if (width == (byte) 2) // if prefix determines Integer is a short
 						record.add((int) buf.getShort()); // read in 2 bytes
-					else if (width == 1) // if prefix determines Integer is a byte
+					else if (width == (byte) 1) // if prefix determines Integer is a byte
 						record.add((int) buf.get()); // read in 1 byte
-					else
+					else // (width == -1)
 						record.add(null); // else prefix is -1. read in null
-				} else if (columnType == FieldType.BOOLEAN) { // if columnType is a Boolean:
+				} else { // if (columnType == FieldType.BOOLEAN) { // if columnType is a Boolean:
 					var val = buf.get(); // get boolean byte
-					if (val == 0) // if val is 0:
+
+					if (val == (byte) 0) // if val is 0:
 						record.add(false); // read in false
-					else if (val == 1) // if val is 1:
+					else if (val == (byte) 1) // if val is 1:
 						record.add(true); // read in true
-					else
+					else // (val == -1)
 						record.add(null); // else boolean is -1. read in null
 				}
 			}
-			System.out.println(record);
+			//System.out.println(record);
 			return record; // hit
 		} catch (IOException e) {
 			throw new RuntimeException("State file I/O error", e);
@@ -500,7 +504,7 @@ public class HashFileTable extends PrettyTable {
 			} else if (columnType == FieldType.INTEGER) {
 				recordWidth += 1 + 4; // Integer prefix plus max Integer width
 			} else if (columnType == FieldType.BOOLEAN) {
-				recordWidth += 1; // Boolean width
+				recordWidth += 1; // Boolean width 
 			}
 		}
 	}
