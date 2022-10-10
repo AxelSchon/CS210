@@ -40,12 +40,13 @@ public class HashFileTable extends PrettyTable {
 	// define constants for the limits of the data types
 	private static final int MAX_STRING_LENGTH = 127; // remember to keep track of length (1 byte)
 	private static final int MAX_INT_SIZE = 4; // size of int
-	private static final int BOOLEAN_SIZE = 1; // 
+	private static final int MAX_BYTE_SIZE = 1;
 	private static final int MAX_COL_NAME_LENGTH = 15; // max length of name
 	private static final int MAX_COL_COUNT = 15; // max number of columns
 	private static final int LENGTH_NAME_BYTE = 1; // byte before name which states length of name
 	private static final int LENGTH_TYPE_BYTE = 1; // byte which states type
-	private static final int LENGTH_INT_BYTE = 1; //  byte which states how many bytes field 2 stores within state
+	private static final int NUM_METADATA_FIELDS = 3; // number of fields stored in metadata: 3 (size, fingerprint, and recordWidth)
+	private static final int HEADER_SIZE = 2; // number of data stored in the header: 2 (column count and primary index)
 
 	// eg. max string length, max column name length, max column count,  etc 
 
@@ -223,6 +224,7 @@ public class HashFileTable extends PrettyTable {
 	}
 
 // optional for M2
+	@SuppressWarnings("unused")
 	private void delete() {
 		truncate();
 		try {
@@ -301,7 +303,7 @@ public class HashFileTable extends PrettyTable {
 	public void writeMetaData() {
 		try {
 			// WRITE METADATA
-			var buf = metadata.map(READ_WRITE, 0, MAX_INT_SIZE * 3);
+			var buf = metadata.map(READ_WRITE, 0, MAX_INT_SIZE * NUM_METADATA_FIELDS);
 			buf.putInt(size); // put into buffer int representing size
 			buf.putInt(fingerprint); // put into buffer int representing fingerprint
 			buf.putInt(recordWidth); // put into buffer int representing recordWidth
@@ -313,7 +315,7 @@ public class HashFileTable extends PrettyTable {
 	public void readMetaData() {
 		try {
 			// READ METADATA
-			var buf = metadata.map(READ_ONLY, 0, MAX_INT_SIZE * 3);
+			var buf = metadata.map(READ_ONLY, 0, MAX_INT_SIZE * NUM_METADATA_FIELDS);
 			size = (buf.getInt()); // get from buffer int representing size
 			fingerprint = (buf.getInt()); // get from buffer int representing fingerprint
 			recordWidth = (buf.getInt()); // get from buffer int representing recordWidth
@@ -325,8 +327,8 @@ public class HashFileTable extends PrettyTable {
 	public void writeSchema() {
 		try {
 			// WRITE SCHEMA
-			var buf = schema.map(READ_WRITE, 0,
-					MAX_INT_SIZE * 2 + (LENGTH_NAME_BYTE + MAX_COL_NAME_LENGTH + LENGTH_TYPE_BYTE) * MAX_COL_COUNT);
+			var buf = schema.map(READ_WRITE, 0, MAX_INT_SIZE * HEADER_SIZE
+					+ (LENGTH_NAME_BYTE + MAX_COL_NAME_LENGTH + LENGTH_TYPE_BYTE) * MAX_COL_COUNT);
 
 			buf.putInt(getColumnTypes().size()); // put into buffer the col count
 			buf.putInt(getPrimaryIndex()); // put into buffer the primary index
@@ -355,8 +357,8 @@ public class HashFileTable extends PrettyTable {
 //		List<FieldType> colTypes = null;
 
 		try {
-			var buf = schema.map(READ_WRITE, 0,
-					MAX_INT_SIZE * 2 + (LENGTH_NAME_BYTE + MAX_COL_NAME_LENGTH + LENGTH_TYPE_BYTE) * MAX_COL_COUNT);
+			var buf = schema.map(READ_WRITE, 0, MAX_INT_SIZE * HEADER_SIZE
+					+ (LENGTH_NAME_BYTE + MAX_COL_NAME_LENGTH + LENGTH_TYPE_BYTE) * MAX_COL_COUNT);
 
 			size = buf.getInt(); // set column count
 			var primaryIndex = buf.getInt(); // store primary index (set after columnNames and ColumnTypes has been set)
@@ -500,11 +502,11 @@ public class HashFileTable extends PrettyTable {
 		for (int i = 0; i < getColumnTypes().size(); i++) {
 			var columnType = getColumnTypes().get(i);
 			if (columnType == FieldType.STRING) {
-				recordWidth += 1 + 127; // String prefix plus max string width
+				recordWidth += MAX_BYTE_SIZE + MAX_STRING_LENGTH; // String prefix plus max string width
 			} else if (columnType == FieldType.INTEGER) {
-				recordWidth += 1 + 4; // Integer prefix plus max Integer width
+				recordWidth += MAX_BYTE_SIZE + MAX_INT_SIZE; // Integer prefix plus max Integer width
 			} else if (columnType == FieldType.BOOLEAN) {
-				recordWidth += 1; // Boolean width 
+				recordWidth += MAX_BYTE_SIZE; // Boolean width 
 			}
 		}
 	}

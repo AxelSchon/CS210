@@ -267,6 +267,7 @@ public class HashArrayTable extends PrettyTable {
 	}
 
 	// hash function 2 for double hashing
+	@SuppressWarnings("unused")
 	private static int hashFunction2(Object key) {
 		String input = "%s-%s-%s".formatted("otherSaltOfMyChoice", key.hashCode(), key.toString());
 
