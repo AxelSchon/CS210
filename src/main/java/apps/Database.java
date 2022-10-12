@@ -25,8 +25,8 @@ public class Database implements Closeable {
 	 * TODO: Implement stub for Module 3.
 	 */
 
-	private final List<Table> tables;
-	private final boolean persistent;
+	private final List<Table> tables; // list of tables we are storing
+	private final boolean persistent; // whether or not data is supposed to be persistent
 
 	/**
 	 * Initializes the tables.
@@ -34,9 +34,9 @@ public class Database implements Closeable {
 	 * @param persistent whether the database is persistent.
 	 */
 	public Database(boolean persistent) {
-		this.persistent = persistent;
+		this.persistent = persistent; // sets persistence to passed boolean
 
-		tables = new LinkedList<>();
+		tables = new LinkedList<>(); // tables is just a new linked list
 
 	}
 
@@ -127,16 +127,16 @@ public class Database implements Closeable {
 	 *                    if some driver can't parse or execute the query,
 	 *                    or if no driver recognizes the query.
 	 */
-	public Object interpret(String query) throws QueryError {
+	public Object interpret(String query) throws QueryError { // works by plugging in a bunch of components which know how to handle each on of the different query types and asks those to do the work
 
 		// TODO make a list of new driver objects, loop through it
 		Driver echo = new Echo();
 		if (echo.parse(query))
-			return echo.execute(null);
+			return echo.execute(null); // may be passed this
 
 		Driver range = new Range();
 		if (range.parse(query))
-			return range.execute(null);
+			return range.execute(null); // may be passed this
 
 		Driver show = new ShowTable();
 		if (show.parse(query))

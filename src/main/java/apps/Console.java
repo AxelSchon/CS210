@@ -5,6 +5,7 @@ import java.io.PrintStream;
 import java.util.Scanner;
 
 import sql.QueryError;
+import tables.Table;
 
 /**
  * Implements a user console for
@@ -23,31 +24,43 @@ public class Console {
 	 * with user input/output.
 	 */
 	public static void main(String[] args) {
-		try (final Database db = new Database(true);
-				final Scanner in = new Scanner(System.in);
-				final PrintStream out = System.out;) {
+		try (final Database db = new Database(true); // true: database persistent in storage (dependent on M2). false: non-persistent 
+				final Scanner in = new Scanner(System.in); // keyboard input
+				final PrintStream out = System.out;) { // destination. system.out is console output
 
-			{// TODO: make this a loop which stops on input EXIT (case insensitive) (not script, not query)
-				out.print(">> ");
+			while (true) {
+				out.print(">> "); // prints out prompt.(>>)
 
-				// 
-				String script = in.nextLine().strip();
+				String script = in.nextLine().strip(); // get query input from user
 
-				// if input is a comment, skip to next run of REPL
+				if (script.toUpperCase().equals("EXIT")) // if sentinel is entered, exit REPL
+					break;
+				if (script.startsWith("--")) //// if input is a comment, skip to next run of REPL
+					continue;
 
-				var queries = script.split(";");
+				String[] queries = script.split(";"); // split user input on semicolon
+				for (String query : queries) { // for every token:
+					query = query.strip(); // remove white space from query
 
-				for (String query : queries) { // must have check for EXIT somewhere inside loop?
-					query = query.strip();
-					// if the query is blank, skip to the next run of the loop ( String should have method for this?)
+					if (query.isBlank())// if the query is blank:
+						continue; // skip to the next run of the loop
 
-					// print the query back
-					out.println("Query: " + query); // my code (might be wrong)
+					out.println("Query: " + query); // print the query back
+
 					try {
-						var res = db.interpret(query);
-						// use instance of to check the type
-						// branch accordingly
-						out.println("Result: " + res);
+						var res = db.interpret(query); // determines what this instruction is supposed to do on data this database has and return meaningful result
+
+						// use instance of to check the type and branch accordingly
+						if (res instanceof Table) {
+							if (db.exists(((Table) res).getTableName()))
+								out.println("Table: " + res.toString());
+							else
+								out.println("Result Set: " + res.toString());
+						}
+						if (res instanceof Integer)
+							out.println("Number of affected rows: " + res);
+						if (res instanceof String || res instanceof Boolean)
+							out.println("Result: " + res);
 					} catch (QueryError e) {
 						out.println("Error: " + e);
 					}
