@@ -51,7 +51,7 @@ public class Console {
 						var res = db.interpret(query); // determines what this instruction is supposed to do on data this database has and return meaningful result
 
 						// use instance of to check the type and branch accordingly
-						if (res instanceof Table) {
+						if (res instanceof Table) { // distinguish table from result set by checking if the name begins with an underscore or not (underscore means result set)
 							if (db.exists(((Table) res).getTableName()))
 								out.println("Table: " + res.toString());
 							else

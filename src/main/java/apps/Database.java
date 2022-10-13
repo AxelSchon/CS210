@@ -37,7 +37,6 @@ public class Database implements Closeable {
 		this.persistent = persistent; // sets persistence to passed boolean
 
 		tables = new LinkedList<>(); // tables is just a new linked list
-
 	}
 
 	/**
@@ -66,7 +65,7 @@ public class Database implements Closeable {
 	 * @param table a table.
 	 * @return whether the table was created.
 	 */
-	public boolean create(Table table) {
+	public boolean create(Table table) { // can never have two tables with same name
 		if (exists(table.getTableName()))
 			return false;
 
@@ -81,7 +80,7 @@ public class Database implements Closeable {
 	 * @param tableName a table name.
 	 * @return the dropped table, if any.
 	 */
-	public Table drop(String tableName) {
+	public Table drop(String tableName) { // can only drop names which are in use
 		if (!exists(tableName))
 			return null;
 

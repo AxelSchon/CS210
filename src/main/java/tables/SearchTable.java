@@ -10,7 +10,7 @@ import sql.FieldType;
 /**
  * Implements a search-based table using a list data structure.
  */
-public class SearchTable extends Table {
+public class SearchTable extends PrettyTable {
 	// Map: { key: value, key: value, key: value} --> { "A": 1, "B": 2, "C": 3}
 	// (Rather than indexing, use keys to find information)
 	private Map<Object, List<Object>> tree;
@@ -55,8 +55,10 @@ public class SearchTable extends Table {
 
 		// old implementation
 		/**
-		 * for (int i = 0; i < list.size(); i++) { List<Object> old = list.get(i); if
-		 * (old.get(getPrimaryIndex()).equals(key)) { fingerprint += row.hashCode() -
+		 * for (int i = 0; i < list.size(); i++) { List<Object> old =
+		 * list.get(i); if
+		 * (old.get(getPrimaryIndex()).equals(key)) { fingerprint +=
+		 * row.hashCode() -
 		 * old.hashCode(); list.set(i, row); return true; } } fingerprint +=
 		 * row.hashCode(); list.add(row); return false;
 		 */
@@ -73,8 +75,10 @@ public class SearchTable extends Table {
 
 		// old implementation
 		/**
-		 * for (int i = 0; i < list.size(); i++) { List<Object> row = list.get(i); if
-		 * (row.get(getPrimaryIndex()).equals(key)) { fingerprint -= row.hashCode();
+		 * for (int i = 0; i < list.size(); i++) { List<Object> row =
+		 * list.get(i); if
+		 * (row.get(getPrimaryIndex()).equals(key)) { fingerprint -=
+		 * row.hashCode();
 		 * list.remove(i); return true; } } return false;
 		 */
 	}
