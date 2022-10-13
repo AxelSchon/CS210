@@ -35,12 +35,13 @@ public class Console {
 
 				if (script.toUpperCase().equals("EXIT")) // if sentinel is entered, exit REPL
 					break;
-				if (script.startsWith("--")) //// if input is a comment, skip to next run of REPL
-					continue;
 
 				String[] queries = script.split(";"); // split user input on semicolon
 				for (String query : queries) { // for every token:
 					query = query.strip(); // remove white space from query
+
+					if (query.startsWith("--")) //// if input is a comment, skip to next run of REPL
+						continue;
 
 					if (query.isBlank())// if the query is blank:
 						continue; // skip to the next run of the loop
@@ -52,10 +53,10 @@ public class Console {
 
 						// use instance of to check the type and branch accordingly
 						if (res instanceof Table) { // distinguish table from result set by checking if the name begins with an underscore or not (underscore means result set)
-							if (db.exists(((Table) res).getTableName()))
-								out.println("Table: " + res.toString());
-							else
+							if ((((Table) res).getTableName().startsWith("_")))
 								out.println("Result Set: " + res.toString());
+							else
+								out.println("Table: " + res.toString());
 						}
 						if (res instanceof Integer)
 							out.println("Number of affected rows: " + res);

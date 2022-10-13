@@ -23,7 +23,7 @@ public abstract class PrettyTable extends Table {
 			var key2 = (Comparable<Object>) row2.get(getPrimaryIndex());
 			return key1.compareTo(key2);
 		});
-
+		sb.append("\n");
 		sb.append("  --------------------").append("\n"); // lid of table name container
 		sb.append(" /"); // first slash in row
 		sb.append(String.format(" %-18s ", getTableName())); // table name
@@ -39,11 +39,16 @@ public abstract class PrettyTable extends Table {
 		// print column headers
 		for (int i = 0; i < getColumnNames().size(); i++) {
 			if (i == getPrimaryIndex()) {
-				sb.append("|"); // first pipe in row
-				sb.append(String.format(" *%-19s ", getColumnNames().get(i)));
+				if (getColumnTypes().get(i).getTypeNumber() == 2) {
+					sb.append("|"); // first pipe in row
+					sb.append(String.format(" %20s ", getColumnNames().get(i) + "*"));
+				} else {
+					sb.append("|"); // first pipe in row
+					sb.append(String.format(" %-20s ", getColumnNames().get(i) + "*"));
+				}
 			} else if (getColumnTypes().get(i).getTypeNumber() == 2) {
 				sb.append("|"); // first pipe in row
-				sb.append(String.format(" %-20s ", getColumnNames().get(i)));
+				sb.append(String.format(" %20s ", getColumnNames().get(i)));
 			} else {
 				sb.append("|"); // first pipe in row
 				sb.append(String.format(" %-20s ", getColumnNames().get(i)));
