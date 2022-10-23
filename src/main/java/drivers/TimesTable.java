@@ -1,8 +1,19 @@
 package drivers;
 
+import static sql.FieldType.INTEGER;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import apps.Database;
 import sql.Driver;
+import sql.FieldType;
 import sql.QueryError;
+import tables.SearchTable;
+import tables.Table;
 
 /*
  * TIMES TABLE 4
@@ -54,18 +65,78 @@ import sql.QueryError;
  */
 @Deprecated
 public class TimesTable implements Driver {
-	/*
-	 * TODO: Implement stub for Practice 2 (optional)
-	 * according to the documented examples above.
-	 */
+	private static final Pattern pattern = Pattern.compile(
+			// TIMES\s+TABLE\s+([0-9]+)(?:\s+by\s+([0-9]+))?(?:\s+AS\s+([a-z][a-z0-9_]*))?
+			"TIMES\\s+TABLE\\s+([0-9]+)(?:\\s+by\\s+([0-9]+))?(?:\\s+AS\\s+([a-z][a-z0-9_]*))?",
+			Pattern.CASE_INSENSITIVE);
+
+	private int numRows; // number of rows specified by by user. Also determines numCols if number of columns is not inputed. 
+	private int numCols; // number of cols specified by user. (Optional)
+	private String name; // name of corresponding types. (Optional)
 
 	@Override
 	public boolean parse(String query) throws QueryError {
-		return false;
+		Matcher matcher = pattern.matcher(query.strip());
+		// if matcher doesn't match, return false
+		if (!matcher.matches())
+			return false;
+
+		// make sure user input values which are within the bounds of int
+		try {
+			numRows = Integer.parseInt(matcher.group(1));
+			if (matcher.group(2) != null)
+				numCols = Integer.parseInt(matcher.group(2));
+			else
+				numCols = numRows;
+		} catch (NumberFormatException e) {
+			throw new QueryError("Integers must be within signed 32-bit bounds", e);
+		}
+
+		// if user input a name, store it
+		if (matcher.group(3) == null) // user did not input name. 
+			name = null; // no name specified 
+		else if (matcher.group(3).length() > 15) // check to make sure length of group 2 is within bounds. 
+			throw new QueryError("A name must be 1 to 15 characters");
+		else // user did input name
+			name = matcher.group(3); // user inputed name
+
+		return true;
 	}
 
 	@Override
 	public Object execute(Database db) throws QueryError {
-		return null;
+		// store column names into ArrayList
+		ArrayList<String> names = new ArrayList<String>();
+		for (int i = 1; i <= numCols; i++) {
+			if (name != null) { // if user did not input a name
+				if (i == 1) // for first column header
+					names.add(name); // store only the default column header
+				else // for all other column headers
+					names.add(name + "_x" + i); // store the default column header followed by the column number
+			} else { // if user input a name
+				if (i == 1) // for first column header
+					names.add("x"); // only add the name
+				else // for all other column headers
+					names.add("x" + i); // store name followed by column number
+			}
+		}
+
+		// store column types into ArrayList
+		ArrayList<FieldType> types = new ArrayList<FieldType>();
+		for (int i = 0; i < numCols; i++) {
+			types.add(INTEGER); // FieldType will always be of type INTEGER for TimesTable
+		}
+
+		Table resultSet = new SearchTable("_times_table", names, types, 0);
+
+		for (int i = 1; i <= numRows; i++) { // for each row
+			List<Object> row = new LinkedList<>(); // create a new row
+			for (int j = 1; j <= numCols; j++) { // for each column in that row
+				row.add(j * i); // add the current row multiplied by the current column to current column. 
+			}
+			resultSet.put(row); // add the row to the result set
+		}
+
+		return resultSet;
 	}
 }

@@ -5,10 +5,13 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import drivers.DropTable;
 import drivers.Echo;
 import drivers.Macros;
 import drivers.Range;
 import drivers.ShowTable;
+import drivers.ShowTables;
+import drivers.TimesTable;
 import sql.Driver;
 import sql.QueryError;
 import tables.Table;
@@ -87,6 +90,8 @@ public class Database implements Closeable {
 		var table = find(tableName);
 		tables.remove(table);
 		return table;
+
+		// TODO: Correct to drop method shown in class on 10/21
 	}
 
 	/**
@@ -126,9 +131,14 @@ public class Database implements Closeable {
 	 *                    if some driver can't parse or execute the query,
 	 *                    or if no driver recognizes the query.
 	 */
+	@SuppressWarnings("deprecation")
 	public Object interpret(String query) throws QueryError { // works by plugging in a bunch of components which know how to handle each on of the different query types and asks those to do the work
 
 		// TODO make a list of new driver objects, loop through it
+		Driver dropTable = new DropTable();
+		if (dropTable.parse(query))
+			return dropTable.execute(this);
+
 		Driver echo = new Echo();
 		if (echo.parse(query))
 			return echo.execute(null); // may be passed this
@@ -141,9 +151,17 @@ public class Database implements Closeable {
 		if (show.parse(query))
 			return show.execute(this);
 
+		Driver shows = new ShowTables();
+		if (shows.parse(query))
+			return shows.execute(this);
+
 		Driver macro = new Macros();
 		if (macro.parse(query))
 			return macro.execute(this);
+
+		Driver timesTable = new TimesTable();
+		if (timesTable.parse(query))
+			return timesTable.execute(this);
 
 		throw new QueryError("Unrecognized query");
 	}

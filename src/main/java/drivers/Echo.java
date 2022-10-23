@@ -12,9 +12,8 @@ import sql.Driver;
  */
 public class Echo implements Driver {
 	private static final Pattern pattern = Pattern.compile(
-		"ECHO\\s*\"([^\"]*)\"",
-		Pattern.CASE_INSENSITIVE
-	);
+			// ECHO\s*"([^"]*)"
+			"ECHO\\s*\"([^\"]*)\"", Pattern.CASE_INSENSITIVE);
 
 	private String text;
 

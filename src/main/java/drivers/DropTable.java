@@ -8,14 +8,10 @@ import sql.Driver;
 import sql.QueryError;
 import tables.Table;
 
-/*
- * SHOW TABLE example_table
- * 	 -> table: example_table from database
- */
-public class ShowTable implements Driver {
+public class DropTable implements Driver {
 	private static final Pattern pattern = Pattern.compile(
-			// SHOW\s+TABLE\s+([a-z][a-z0-9_]*)
-			"SHOW\\s+TABLE\\s+([a-z][a-z0-9_]*)", Pattern.CASE_INSENSITIVE);
+			// DROP\s+TABLE\s+([a-z][a-z0-9_]*)
+			"DROP\\s+TABLE\\s+([a-z][a-z0-9_]*)", Pattern.CASE_INSENSITIVE);
 
 	private String tableName;
 
@@ -32,11 +28,16 @@ public class ShowTable implements Driver {
 
 	@Override
 	public Object execute(Database db) throws QueryError {
-		Table table = db.find(tableName);
+		Table table = db.drop(tableName);
 
 		if (table == null)
 			throw new QueryError("Missing table <%s>".formatted(tableName));
 
-		return table;
+		// TODO (optional)
+		// if the database is persistent
+		// then if the table happens to be a hash file table
+		// then do anything necessary to clean it up
+
+		return table.size();
 	}
 }

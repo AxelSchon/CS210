@@ -23,7 +23,9 @@ import tables.Table;
  */
 @Deprecated
 public class Macros implements Driver {
-	private static final Pattern pattern = Pattern.compile("MACRO\\s+(\\w+)(?:\\s+(.+))?", Pattern.CASE_INSENSITIVE);
+	private static final Pattern pattern = Pattern.compile(
+			// MACRO\s+([a-z0-9_]+)(?:\s+([a-z0-9_]+))?
+			"MACRO\\s+(\\w+)(?:\\s+(.+))?", Pattern.CASE_INSENSITIVE);
 
 	private String macro;
 	private String option;
@@ -110,8 +112,8 @@ public class Macros implements Driver {
 		// below are my personal macros
 		case "TABLE1" -> {
 			/*
-			 * MACRO 1
-			 *   -> table: macro_1 with 3 columns by 8 rows
+			 * MACRO TABLE1
+			 *   -> table: TABLE1 with 3 columns by 8 rows
 			 *     (table also injected into database)
 			 */
 
@@ -132,8 +134,8 @@ public class Macros implements Driver {
 		}
 		case "TABLE2" -> {
 			/*
-			 * MACRO 1
-			 *   -> table: macro_1 with 3 columns by 8 rows
+			 * MACRO TABLE2
+			 *   -> table: TABLE2 with 4 columns by 8 rows
 			 *     (table also injected into database)
 			 */
 
@@ -153,6 +155,11 @@ public class Macros implements Driver {
 			yield table;
 		}
 		case "TABLE3" -> {
+			/*
+			 * MACRO TABLE3
+			 *   -> table: TABLE3 with 5 columns by 10 rows
+			 *     (table also injected into database)
+			 */
 			Table table = new SearchTable("TABLE3", List.of("letter", "order", "vowel", "int", "boolean"),
 					List.of(STRING, INTEGER, BOOLEAN, INTEGER, BOOLEAN), 3);
 			table.put(List.of("this", 1, true, 0, false));
@@ -163,6 +170,8 @@ public class Macros implements Driver {
 			table.put(List.of("demonstrational", 6, false, 5, false));
 			table.put(List.of("purposes", 7, true, 6, false));
 			table.put(Arrays.asList("this string is too long to display", null, true, 7, false));
+			table.put(Arrays.asList("this string is too long to display", null, true, 8, false));
+			table.put(Arrays.asList("this string is too long to display", null, true, 9, false));
 
 			db.create(table);
 
