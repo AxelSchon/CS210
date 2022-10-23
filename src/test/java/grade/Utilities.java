@@ -20,16 +20,26 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.TestReporter;
 import org.junit.jupiter.api.function.ThrowingSupplier;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import apps.Database;
 import sql.FieldType;
+import sql.QueryError;
 import tables.Table;
 
 @TestInstance(Lifecycle.PER_CLASS)
@@ -562,6 +572,8 @@ abstract class AbstractTableContainer {
 
 			Files.createDirectories(path.getParent());
 			log = new PrintStream(path.toFile());
+
+			System.out.println("Log: " + path);
 		}
 		catch (IOException e) {
 			e.printStackTrace();
@@ -600,88 +612,411 @@ abstract class AbstractTableContainer {
 		if (log != null)
 			logLine("%s.%s;".formatted(tableName, call));
 	}
+}
 
-	static class ControlTable extends Table {
-		Map<Object, List<Object>> map;
-		Set<Object> keyCache;
-		int fingerprint;
+abstract class AbstractQueryContainer {
+	static final Path LOGS_DIRECTORY = Paths.get("data", "logs");
 
-		ControlTable(String tableName, List<String> columnNames, List<FieldType> columnTypes, int primaryIndex) {
-			setTableName(tableName);
-			setColumnNames(columnNames);
-			setColumnTypes(columnTypes);
-			setPrimaryIndex(primaryIndex);
+	int graded, earned;
 
-			map = new HashMap<>();
-			keyCache = new LinkedHashSet<>();
-			clear();
+	Object[][] queryData;
+	Object[][] controlData;
+
+	Database subject;
+	PrintStream log;
+
+	@BeforeAll
+	void startGrade() {
+		graded = 0;
+		earned = 0;
+	}
+
+	@BeforeAll
+	void defineDB() throws IOException {
+		try {
+			subject = new Database(false);
 		}
-
-		Set<Object> keyCache() {
-			return keyCache;
+		catch (Exception e) {
+			fail("Database constructor must not throw exceptions", e);
 		}
+	}
 
-		@Override
-		public void clear() {
-			map.clear();
-			keyCache.clear();
-			fingerprint = 0;
-		}
+	@BeforeAll
+	void defineLog() {
+		logStart();
+	}
 
-		@Override
-		public boolean put(List<Object> row) {
-			var key = row.get(getPrimaryIndex());
-			var put = map.put(key, row);
-			if (put != null) {
-				keyCache.remove(key);
-				keyCache.add(key);
-				fingerprint += row.hashCode() - put.hashCode();
-				return true;
+	Arguments[] injectParams() {
+		var arguments = new Arguments[queryData.length];
+
+		for (var a = 0; a < arguments.length; a++) {
+			Table table = null;
+			if (a < controlData.length && controlData[a] != null) {
+				var i = 0;
+
+				var tableName = (String) controlData[a][i++];
+				var columnCount = (int) controlData[a][i++];
+				var primaryIndex = (int) controlData[a][i++];
+
+				var columnNames = new LinkedList<String>();
+				for (var j = 1; j <= columnCount; j++)
+					columnNames.add((String) controlData[a][i++]);
+
+				var columnTypes = new LinkedList<FieldType>();
+				for (var j = 1; j <= columnCount; j++)
+					columnTypes.add((FieldType) controlData[a][i++]);
+
+				List<List<Object>> rows = new LinkedList<>();
+				for (var j = i; j < controlData[a].length; j += columnCount) {
+					var row = new LinkedList<>();
+					for (var k = 0; k < columnCount; k++)
+						row.add(controlData[a][j+k]);
+					rows.add(row);
+				}
+
+				table = new ControlTable(
+					tableName,
+					columnNames,
+					columnTypes,
+					primaryIndex,
+					rows
+				);
 			}
+
+			arguments[a] = Arguments.of(
+				queryData[a][1],
+				Objects.toString(queryData[a][2], "none provided"),
+				queryData[a][0],
+				table
+			);
+		}
+
+		return arguments;
+	}
+
+	@DisplayName("Queries")
+	@ParameterizedTest(name = "[{index}] {0}")
+	@MethodSource("injectParams")
+	void testQuery(String query, String purpose, Object expectedResult, Table expectedTable) {
+		if (!purpose.contains("prerequisite"))
+			graded++;
+
+		Object actualResult = null;
+		try {
+			logQuery(query);
+			actualResult = subject.interpret(query);
+		}
+		catch (QueryError error) {
+			actualResult = error;
+		}
+		catch (Exception thrown) {
+			fail(
+				"Query must not throw <%s> with reason: <%s>, purpose: <%s>".formatted(
+					thrown.getClass(),
+					Objects.toString(thrown.getMessage(), "none provided"),
+					purpose
+				),
+				thrown
+			);
+		}
+
+		Table actualTable = null;
+		if (expectedResult == Table.class) {
+			if (!(actualResult instanceof Table))
+				assertEquals(
+					Table.class,
+					actualResult,
+					"Query must return %s, purpose: <%s>".formatted(
+						expectedTable != null && expectedTable.getTableName().startsWith("_") ? "result set" : "table",
+						purpose
+					)
+				);
+
+			actualTable = (Table) actualResult;
+		}
+		else if (expectedResult instanceof Integer) {
+			assertEquals(
+				expectedResult,
+				actualResult,
+				"Query must return integer (number of affected rows), purpose: <%s>".formatted(purpose)
+			);
+
+			var embeddedName = query.strip().split("\\s+")[2];
+			for (var table: subject.tables()) {
+				if (table.getTableName().equals(embeddedName)) {
+					actualTable = table;
+					break;
+				}
+			}
+		}
+		else if (expectedResult instanceof String) {
+			assertEquals(
+				expectedResult,
+				actualResult,
+				"Query must return string, purpose: <%s>".formatted(purpose)
+			);
+		}
+		else if (expectedResult instanceof Boolean) {
+			assertEquals(
+				expectedResult,
+				actualResult,
+				"Query must return boolean, purpose: <%s>".formatted(purpose)
+			);
+		}
+		else if (expectedResult == QueryError.class) {
+			if (!(actualResult instanceof QueryError))
+				assertEquals(
+					QueryError.class,
+					actualResult,
+					"Query must throw SQLError, purpose: <%s>".formatted(purpose)
+				);
+		}
+
+		if (expectedTable != null) {
+			var friendlyName = friendly(expectedTable.getTableName());
+
+			assertEquals(
+				expectedTable.getTableName(),
+				actualTable.getTableName(),
+				"%s has incorrect table name in schema".formatted(friendlyName)
+			);
+
+			assertEquals(
+				expectedTable.getColumnNames(),
+				actualTable.getColumnNames(),
+				"%s has incorrect column names in schema".formatted(friendlyName)
+			);
+
+			assertEquals(
+				expectedTable.getColumnTypes(),
+				actualTable.getColumnTypes(),
+				"%s has incorrect column types in schema".formatted(friendlyName)
+			);
+
+			assertEquals(
+				expectedTable.getPrimaryIndex(),
+				actualTable.getPrimaryIndex(),
+				"%s has incorrect primary index in schema".formatted(friendlyName)
+			);
+
+			for (var e_row: expectedTable) {
+				var e_key = e_row.get(expectedTable.getPrimaryIndex());
+
+				if (!actualTable.contains(e_key))
+					fail(
+						"%s doesn't contain expected key <%s> with type <%s> in state".formatted(
+							friendlyName,
+							e_key,
+							typeOf(e_key)
+						)
+					);
+
+				var a_row = actualTable.get(e_key);
+
+				assertEquals(
+					typesOf(e_row),
+					typesOf(a_row),
+					"%s has unexpected types of row <%s> in state".formatted(
+						friendlyName,
+						a_row
+					)
+				);
+
+				assertEquals(
+					stringsOf(e_row),
+					stringsOf(a_row),
+					"%s has unexpected field values of row with key <%s> in state".formatted(
+						friendlyName,
+						e_key
+					)
+				);
+			}
+
+			for (var a_key: actualTable.keys()) {
+				if (!expectedTable.contains(a_key))
+					fail(
+						"%s contains unexpected key <%s> with type <%s> in state".formatted(
+							friendlyName,
+							a_key,
+							typeOf(a_key)
+						)
+					);
+			}
+		}
+
+		if (!purpose.contains("prerequisite"))
+			earned++;
+
+		serialTable = actualTable;
+	}
+
+	Table serialTable;
+
+	@AfterAll
+	void reportGrade(TestReporter reporter) throws IOException {
+		var module = this.getClass().getSimpleName();
+		var tag = "%s%s".formatted(module.charAt(0), module.charAt(module.length() - 1));
+		var pct = (int) Math.ceil(earned / (double) graded * 100);
+
+		System.out.printf("[%s PASSED %d%% OF UNIT TESTS]\n", tag, pct);
+
+		reporter.publishEntry("Tag", tag);
+		reporter.publishEntry("Grade", String.valueOf(pct));
+	}
+
+	@AfterAll
+	void cleanDB() {
+		try {
+			subject.close();
+		}
+		catch (Exception e) {
+			fail("Database close should not throw exceptions", e);
+		}
+	}
+
+	static String friendly(String tableName) {
+		return tableName.startsWith("_")
+			? "result set <%s>".formatted(tableName)
+			: "table <%s> in the database".formatted(tableName);
+	}
+
+	static String typeOf(Object obj) {
+		if (obj == null)
+			return "null";
+		else if (obj instanceof String s)
+			return "%s (length %d)".formatted(FieldType.STRING.toString(), s.length());
+		else if (obj instanceof Integer i)
+			return FieldType.INTEGER.toString();
+		else if (obj instanceof Boolean b)
+			return FieldType.BOOLEAN.toString();
+		else
+			return "%s (illegal)".formatted(obj.getClass().getSimpleName().toUpperCase());
+	}
+
+	static List<String> typesOf(List<Object> list) {
+		if (list == null)
+			return null;
+
+		return list.stream().map(v -> typeOf(v)).collect(Collectors.toList());
+	}
+
+	static List<String> stringsOf(List<Object> list) {
+		if (list == null)
+			return null;
+
+		return list.stream().map(v -> String.valueOf(v)).collect(Collectors.toList());
+	}
+
+	void logStart() {
+		try {
+			var module = this.getClass().getSimpleName();
+			var tag = "%s%s".formatted(module.charAt(0), module.charAt(module.length() - 1));
+			var path = LOGS_DIRECTORY.resolve("%s.sql".formatted(tag));
+
+			Files.createDirectories(path.getParent());
+			log = new PrintStream(path.toFile());
+
+			System.out.println("Log: " + path);
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	void logQuery(String query) {
+		if (log != null)
+			log.println(query + ";");
+	}
+}
+
+class ControlTable extends Table {
+	Map<Object, List<Object>> map;
+	Set<Object> keyCache;
+	int fingerprint;
+
+	ControlTable(String tableName, List<String> columnNames, List<FieldType> columnTypes, int primaryIndex) {
+		setTableName(tableName);
+		setColumnNames(columnNames);
+		setColumnTypes(columnTypes);
+		setPrimaryIndex(primaryIndex);
+
+		keyCache = new LinkedHashSet<>();
+		map = new HashMap<>();
+	}
+
+	public ControlTable(String tableName, List<String> columnNames, List<FieldType> columnTypes, int primaryIndex, List<List<Object>> rows) {
+		this(tableName, columnNames, columnTypes, primaryIndex);
+
+		for (var row: rows) {
+			var key = row.get(primaryIndex);
+			map.put(key, row);
+		}
+	}
+
+	Set<Object> keyCache() {
+		return keyCache;
+	}
+
+	@Override
+	public void clear() {
+		map.clear();
+		keyCache.clear();
+		fingerprint = 0;
+	}
+
+	@Override
+	public boolean put(List<Object> row) {
+		var key = row.get(getPrimaryIndex());
+		var put = map.put(key, row);
+		if (put != null) {
+			keyCache.remove(key);
 			keyCache.add(key);
-			fingerprint += row.hashCode();
-			return false;
+			fingerprint += row.hashCode() - put.hashCode();
+			return true;
 		}
+		keyCache.add(key);
+		fingerprint += row.hashCode();
+		return false;
+	}
 
-		@Override
-		public boolean remove(Object key) {
-			var rem = map.remove(key);
-			if (rem != null) {
-				keyCache.remove(key);
-				fingerprint -= rem.hashCode();
-				return true;
-			}
-			return false;
+	@Override
+	public boolean remove(Object key) {
+		var rem = map.remove(key);
+		if (rem != null) {
+			keyCache.remove(key);
+			fingerprint -= rem.hashCode();
+			return true;
 		}
+		return false;
+	}
 
-		@Override
-		public List<Object> get(Object key) {
-			return map.get(key);
-		}
+	@Override
+	public List<Object> get(Object key) {
+		return map.get(key);
+	}
 
-		@Override
-		public boolean contains(Object key) {
-			return map.containsKey(key);
-		}
+	@Override
+	public boolean contains(Object key) {
+		return map.containsKey(key);
+	}
 
-		@Override
-		public int size() {
-			return map.size();
-		}
+	@Override
+	public int size() {
+		return map.size();
+	}
 
-		@Override
-		public int capacity() {
-			return size();
-		}
+	@Override
+	public int capacity() {
+		return size();
+	}
 
-		@Override
-		public int hashCode() {
-			return fingerprint;
-		}
+	@Override
+	public int hashCode() {
+		return fingerprint;
+	}
 
-		@Override
-		public Iterator<List<Object>> iterator() {
-			return map.values().iterator();
-		}
+	@Override
+	public Iterator<List<Object>> iterator() {
+		return map.values().iterator();
 	}
 }
