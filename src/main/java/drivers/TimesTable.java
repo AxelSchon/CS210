@@ -92,11 +92,18 @@ public class TimesTable implements Driver {
 			throw new QueryError("Integers must be within signed 32-bit bounds", e);
 		}
 
+		// make sure user input a legal number of rows/cols
+		if (Integer.parseInt(matcher.group(1)) < 1 || Integer.parseInt(matcher.group(1)) > 15)
+			throw new QueryError("Number of rows must be greater than 0 and less than 16");
+		if (matcher.group(2) != null
+				&& (Integer.parseInt(matcher.group(2)) < 1 || Integer.parseInt(matcher.group(2)) > 15))
+			throw new QueryError("Number of columns must be greater than 0 and less than 16");
+
 		// if user input a name, store it
 		if (matcher.group(3) == null) // user did not input name. 
 			name = null; // no name specified 
-		else if (matcher.group(3).length() > 15) // check to make sure length of group 2 is within bounds. 
-			throw new QueryError("A name must be 1 to 15 characters");
+		else if (matcher.group(3).length() > 11) // check to make sure length of group 2 is within bounds. 
+			throw new QueryError("A name must be 1 to 11 characters");
 		else // user did input name
 			name = matcher.group(3); // user inputed name
 
@@ -127,7 +134,7 @@ public class TimesTable implements Driver {
 			types.add(INTEGER); // FieldType will always be of type INTEGER for TimesTable
 		}
 
-		Table resultSet = new SearchTable("_times_table", names, types, 0);
+		Table resultSet = new SearchTable("_times", names, types, 0);
 
 		for (int i = 1; i <= numRows; i++) { // for each row
 			List<Object> row = new LinkedList<>(); // create a new row
