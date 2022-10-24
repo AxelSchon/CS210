@@ -163,10 +163,7 @@ public class HashFileTable extends PrettyTable {
 		} else { // hit
 
 			try {// delete the corresponding file
-				if (Files.exists(pathOf(digest))) {
-					Files.walk(pathOf(digest)).sorted(Comparator.reverseOrder()).map(path -> path.toFile())
-							.forEach(file -> file.delete());
-				}
+				Files.delete(pathOf(digest));
 				// update metaData for hit
 				size--;
 				fingerprint -= old.hashCode();

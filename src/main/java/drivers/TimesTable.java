@@ -12,7 +12,7 @@ import apps.Database;
 import sql.Driver;
 import sql.FieldType;
 import sql.QueryError;
-import tables.SearchTable;
+import tables.HashArrayTable;
 import tables.Table;
 
 /*
@@ -134,7 +134,7 @@ public class TimesTable implements Driver {
 			types.add(INTEGER); // FieldType will always be of type INTEGER for TimesTable
 		}
 
-		Table resultSet = new SearchTable("_times", names, types, 0);
+		Table resultSet = new HashArrayTable("_times", names, types, 0);
 
 		for (int i = 1; i <= numRows; i++) { // for each row
 			List<Object> row = new LinkedList<>(); // create a new row
