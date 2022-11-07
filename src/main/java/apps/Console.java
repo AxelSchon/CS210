@@ -2,6 +2,7 @@ package apps;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 import sql.QueryError;
@@ -31,7 +32,13 @@ public class Console {
 			while (true) {
 				out.print(">> "); // prints out prompt.(>>)
 
-				String script = in.nextLine().strip(); // get query input from user
+				String script;
+				try {
+					script = in.nextLine().strip(); // get query input from user
+					System.out.println();
+				} catch (NoSuchElementException e) {
+					return;
+				}
 
 				if (script.toUpperCase().equals("EXIT")) // if sentinel is entered, exit REPL
 					break;

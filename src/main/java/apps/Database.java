@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import drivers.CreateTable;
 import drivers.DropTable;
 import drivers.Echo;
+import drivers.InsertInto;
 import drivers.Macros;
 import drivers.Range;
 import drivers.ShowTable;
@@ -84,14 +86,10 @@ public class Database implements Closeable {
 	 * @return the dropped table, if any.
 	 */
 	public Table drop(String tableName) { // can only drop names which are in use
-		if (!exists(tableName))
-			return null;
-
-		var table = find(tableName);
-		tables.remove(table);
-		return table;
-
-		// TODO: Correct to drop method shown in class on 10/21
+		for (var i = 0; i < tables.size(); i++)
+			if (tables.get(i).getTableName().equals(tableName))
+				return tables.remove(i);
+		return null;
 	}
 
 	/**
@@ -135,17 +133,29 @@ public class Database implements Closeable {
 	public Object interpret(String query) throws QueryError { // works by plugging in a bunch of components which know how to handle each on of the different query types and asks those to do the work
 
 		// TODO make a list of new driver objects, loop through it
-		Driver dropTable = new DropTable();
-		if (dropTable.parse(query))
-			return dropTable.execute(this);
+		Driver create = new CreateTable();
+		if (create.parse(query))
+			return create.execute(this);
+
+		Driver drop = new DropTable();
+		if (drop.parse(query))
+			return drop.execute(this);
 
 		Driver echo = new Echo();
 		if (echo.parse(query))
-			return echo.execute(null); // may be passed this
+			return echo.execute(null);
+
+		Driver insert = new InsertInto();
+		if (insert.parse(query))
+			return insert.execute(null);
+
+		Driver macro = new Macros();
+		if (macro.parse(query))
+			return macro.execute(this);
 
 		Driver range = new Range();
 		if (range.parse(query))
-			return range.execute(null); // may be passed this
+			return range.execute(null);
 
 		Driver show = new ShowTable();
 		if (show.parse(query))
@@ -154,10 +164,6 @@ public class Database implements Closeable {
 		Driver shows = new ShowTables();
 		if (shows.parse(query))
 			return shows.execute(this);
-
-		Driver macro = new Macros();
-		if (macro.parse(query))
-			return macro.execute(this);
 
 		Driver timesTable = new TimesTable();
 		if (timesTable.parse(query))

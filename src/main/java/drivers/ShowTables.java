@@ -1,6 +1,7 @@
 package drivers;
 
 import static sql.FieldType.INTEGER;
+import static sql.FieldType.STRING;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -20,29 +21,22 @@ public class ShowTables implements Driver {
 	@Override
 	public boolean parse(String query) throws QueryError {
 		Matcher matcher = pattern.matcher(query.strip());
-		if (!matcher.matches())
-			return false;
 
-		return true;
-
-		// TODO: convert lines 24 to 27 into a single return statement
+		return matcher.matches(); // true if matches, otherwise false.
 	}
 
 	@Override
 	public Object execute(Database db) {
-		Table resultSet = new SearchTable(
-				// TODO: Update schema based on requirements (un-hard-code List.of)
-				"_range", List.of("asdf"), List.of(INTEGER), 0);
+
+		// create table as per requirements in per project document
+		Table resultSet = new SearchTable("_tables", List.of("table_name", "column_count", "row_count"),
+				List.of(STRING, INTEGER, INTEGER), 0);
 
 		// for each table in the database's list of tables:
-		// (enhanced for loop)
-		// { 
-		//List<Object> row = new LinkedList<>();
-		//row.add(i); // name of table, get from table's schema
-		//row.add(i); // # columns, getColumnNames.size()
-		//row.add(i); // # rows, same technique as DropTables return
-		//resultSet.put(row);
-		// }
+		for (Table table : db.tables()) {
+			// add that tables tableName, col_count, and row_count to the table _tables
+			resultSet.put(List.of(table.getTableName(), table.getColumnNames().size(), table.size()));
+		}
 
 		return resultSet;
 	}

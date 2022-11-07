@@ -162,7 +162,8 @@ public class HashFileTable extends PrettyTable {
 
 		} else { // hit
 
-			try {// delete the corresponding file
+			try {
+				// delete the corresponding file
 				Files.delete(pathOf(digest));
 				// update metaData for hit
 				size--;
