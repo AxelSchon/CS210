@@ -48,9 +48,9 @@ public class HashArrayTable extends PrettyTable {
 	@SuppressWarnings("unchecked")
 	@Override
 	public boolean put(List<Object> row) {
-		row = sanitizeRow(row);
-		Object key = row.get(getPrimaryIndex());
-		final int hash = hashFunction1(key);
+		row = sanitizeRow(row); // sanitize the row
+		Object key = row.get(getPrimaryIndex()); // get the key
+		final int hash = hashFunction1(key); // get the hash of the key
 
 		int t = -1;
 		for (int j = 0; j < array.length; j++) {
@@ -59,18 +59,16 @@ public class HashArrayTable extends PrettyTable {
 			if (array[i] == TOMBSTONE) {
 				// if t has never been assigned an index
 				if (t == -1) {
-					// then update t to match
-					t = i;
+					t = i;// then update t to match
 				}
-				continue;
 
+				continue;
 			}
 
 			if (array[i] == null) { // miss
+				// if t has never been assigned an index
 				if (t == -1) {
-					// if t has never been assigned an index
-					//	 store the row at position i
-					array[i] = row;
+					array[i] = row; // store the row at position i
 				}
 				// otherwise, t is a recycling location
 				else {
@@ -81,12 +79,12 @@ public class HashArrayTable extends PrettyTable {
 					contamination--;
 
 				}
-				// adjust the metadata
-				//	 size increases by 1 (common)
-				//	 fingerprint increases (common)
-				size++;
-				fingerprint += row.hashCode();
 
+				// adjust the metadata
+				size++;	// size increases by 1 (common)
+				fingerprint += row.hashCode(); // fingerprint increases (common)
+
+				// rehash is loadFactor is greater than it's bound
 				if (loadFactor() > LOAD_FACTOR_BOUND)
 					rehash();
 
@@ -97,20 +95,17 @@ public class HashArrayTable extends PrettyTable {
 			if (old.get(getPrimaryIndex()).equals(key)) {//hit
 				//if t has never been assigned an index
 				if (t == -1) {
-					//		update the row at position i with the new row
-					array[i] = row;
+					array[i] = row; // update the row at position i with the new row
 				}
 
 				// otherwise, t is a recycling location
 				else {
-					//		replace the tombstone at position t with the row
-					array[t] = row;
-					//		replace the old row at position i with a tombstone
-					array[i] = TOMBSTONE;
+					array[t] = row;	// replace the tombstone at position t with the row
+					array[i] = TOMBSTONE; // replace the old row at position i with a tombstone
 				}
-				// adjust the metadata
-				//	 fingerprint increases/decreases (common)
-				fingerprint += row.hashCode() - old.hashCode();
+				// adjust the metadata:
+				fingerprint += row.hashCode() - old.hashCode(); // fingerprint increases/decreases (common)
+
 				return true;
 			}
 			// NOT YET A MISS OR HIT, SO CONTINUE
@@ -125,7 +120,7 @@ public class HashArrayTable extends PrettyTable {
 
 		//think of list<Object> as row
 		for (int j = 0; j < array.length; j++) {
-			int i = wrap(hash + (j % 2 == 0 ? j * j : -j * j));
+			int i = wrap(hash + (j % 2 == 0 ? j * j : -j * j)); // ASQP
 
 			if (array[i] == TOMBSTONE)
 				continue;

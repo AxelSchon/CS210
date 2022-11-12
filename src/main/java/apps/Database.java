@@ -147,7 +147,7 @@ public class Database implements Closeable {
 
 		Driver insert = new InsertInto();
 		if (insert.parse(query))
-			return insert.execute(null);
+			return insert.execute(this);
 
 		Driver macro = new Macros();
 		if (macro.parse(query))
