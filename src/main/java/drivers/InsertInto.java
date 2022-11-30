@@ -23,15 +23,13 @@ public class InsertInto implements Driver {
 			// group 3: column names list (or null)
 			// group 4: literal values list
 
-			// 	// long pattern for everything:
-			//	 (INSERT|REPLACE)\s+INTO\s+([a-z][a-z0-9_]*)\s+(?:\((\s*[a-z][a-z0-9_]*(?:\s*,\s*(?:[a-z][a-z0-9_]*)*\s*)*)\)\s+)?VALUES\s+(?:\(((?:"[^"]*"|NULL|(?:TRUE|FALSE)|\d*)(?:\s*,\s*(?:"[^"]*"|NULL|(?:TRUE|FALSE)|\d*)*\s*)*)\))
-
 			// two medium-ish patterns
 			//	 (INSERT|REPLACE)\s+INTO\s+([a-z][a-z0-9_]*)\s+(?:\((\s*[a-z][a-z0-9_]*(?:\s*,\s*(?:[a-z][a-z0-9_]*)*\s*)*)\)\s+)?VALUES\s+(?:\(([^()]*)\))
+			//	 "([^"]*)"|(NULL)|(TRUE|FALSE)|((?:[+]?|[-]?)\d*)
 
 			"(?<keyword>INSERT|REPLACE)\\s+INTO\\s+(?<tableName>[a-z][a-z0-9_]*)\\s+(?:\\((?<columnNames>\\s*[a-z][a-z0-9_]*(?:\\s*,\\s*(?:[a-z][a-z0-9_]*)*\\s*)*)\\)\\s+)?VALUES\\s+(?:\\((?<literalValues>[^()]*)\\))",
 			Pattern.CASE_INSENSITIVE);
-	private static final Pattern literalPattern = Pattern.compile(
+	public static final Pattern literalPattern = Pattern.compile(
 			// Literal Pattern
 			// "([^"]*)"|(NULL)|(TRUE|FALSE)|((?:[+]?|[-]?)\d*)
 			"\"(?<string>[^\"]*)\"|(NULL)|(?<bool>TRUE|FALSE)|(?<int>(?:[+]?|[-]?)(?:0|[1-9]\\d*))",

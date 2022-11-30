@@ -11,6 +11,7 @@ import drivers.Echo;
 import drivers.InsertInto;
 import drivers.Macros;
 import drivers.Range;
+import drivers.SelectFrom;
 import drivers.ShowTable;
 import drivers.ShowTables;
 import drivers.TimesTable;
@@ -156,6 +157,10 @@ public class Database implements Closeable {
 		Driver range = new Range();
 		if (range.parse(query))
 			return range.execute(null);
+
+		Driver select = new SelectFrom();
+		if (select.parse(query))
+			return select.execute(this);
 
 		Driver show = new ShowTable();
 		if (show.parse(query))
