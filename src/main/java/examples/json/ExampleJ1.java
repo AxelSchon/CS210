@@ -1,6 +1,8 @@
 package examples.json;
 
-import static sql.FieldType.*;
+import static sql.FieldType.BOOLEAN;
+import static sql.FieldType.INTEGER;
+import static sql.FieldType.STRING;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -21,7 +23,6 @@ import jakarta.json.JsonReader;
 import jakarta.json.JsonWriter;
 import jakarta.json.JsonWriterFactory;
 import jakarta.json.stream.JsonGenerator;
-
 import sql.FieldType;
 import tables.SearchTable;
 import tables.Table;
@@ -74,8 +75,7 @@ public class ExampleJ1 {
 			JsonWriter writer = factory.createWriter(new FileOutputStream(path.toFile()));
 			writer.writeObject(root_object);
 			writer.close();
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -103,16 +103,10 @@ public class ExampleJ1 {
 
 			int primary_index = root_object.getInt("primary_index");
 
-			Table table = new SearchTable(
-				table_name,
-				column_names,
-				column_types,
-				primary_index
-			);
+			Table table = new SearchTable(table_name, column_names, column_types, primary_index);
 
 			return table;
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}

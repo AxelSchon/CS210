@@ -1,6 +1,8 @@
 package examples.json;
 
-import static sql.FieldType.*;
+import static sql.FieldType.BOOLEAN;
+import static sql.FieldType.INTEGER;
+import static sql.FieldType.STRING;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -19,7 +21,6 @@ import jakarta.json.JsonReader;
 import jakarta.json.JsonWriter;
 import jakarta.json.JsonWriterFactory;
 import jakarta.json.stream.JsonGenerator;
-
 import tables.SearchTable;
 import tables.Table;
 
@@ -69,12 +70,11 @@ public class ExampleJ2 {
 			JsonArray root_array = root_array_builder.build();
 
 			Files.createDirectories(path.getParent());
-		    JsonWriterFactory factory = Json.createWriterFactory(Map.of(JsonGenerator.PRETTY_PRINTING, true));
-		    JsonWriter writer = factory.createWriter(new FileOutputStream(path.toFile()));
-		    writer.writeArray(root_array);
-		    writer.close();
-		}
-		catch (IOException e) {
+			JsonWriterFactory factory = Json.createWriterFactory(Map.of(JsonGenerator.PRETTY_PRINTING, true));
+			JsonWriter writer = factory.createWriter(new FileOutputStream(path.toFile()));
+			writer.writeArray(root_array);
+			writer.close();
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -82,40 +82,26 @@ public class ExampleJ2 {
 	public static Table read(Path path) {
 		try {
 			JsonReader reader = Json.createReader(new FileInputStream(path.toFile()));
-		    JsonArray root_array = reader.readArray();
-		    reader.close();
+			JsonArray root_array = reader.readArray();
+			reader.close();
 
-		    Table table = new SearchTable(
-		    	"example_j2",
-				List.of("letter", "order", "vowel"),
-				List.of(STRING, INTEGER, BOOLEAN),
-				0
-		    );
+			Table table = new SearchTable("example_j2", List.of("letter", "order", "vowel"),
+					List.of(STRING, INTEGER, BOOLEAN), 0);
 
-	    	JsonArray row_array = root_array.getJsonArray(0);
-		    table.put(List.of(
-		    	row_array.getString(0),
-		    	row_array.getInt(1),
-		    	row_array.getBoolean(2)
-		    ));
+			JsonArray row_array = root_array.getJsonArray(0);
+			System.out.println(row_array.toString());
+			System.out.println(row_array.getString(0) + row_array.getInt(1) + row_array.getBoolean(2));
+			table.put(List.of(row_array.getString(0), row_array.getInt(1), row_array.getBoolean(2)));
 
-		    row_array = root_array.getJsonArray(1);
-		    table.put(List.of(
-		    	row_array.getString(0),
-		    	row_array.getInt(1),
-		    	row_array.getBoolean(2)
-		    ));
+			row_array = root_array.getJsonArray(1);
+			table.put(List.of(row_array.getString(0), row_array.getInt(1), row_array.getBoolean(2)));
 
-		    row_array = root_array.getJsonArray(2);
-		    table.put(Arrays.asList(
-		    	row_array.getString(0),
-		    	row_array.isNull(1) ? null : row_array.getInt(1),
-		    	row_array.isNull(2) ? null : row_array.getBoolean(2)
-		    ));
+			row_array = root_array.getJsonArray(2);
+			table.put(Arrays.asList(row_array.getString(0), row_array.isNull(1) ? null : row_array.getInt(1),
+					row_array.isNull(2) ? null : row_array.getBoolean(2)));
 
-		    return table;
-		}
-		catch (IOException e) {
+			return table;
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}

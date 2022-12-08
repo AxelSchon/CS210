@@ -8,6 +8,8 @@ import java.util.List;
 import drivers.CreateTable;
 import drivers.DropTable;
 import drivers.Echo;
+import drivers.Export;
+import drivers.Import;
 import drivers.InsertInto;
 import drivers.Macros;
 import drivers.Range;
@@ -145,6 +147,14 @@ public class Database implements Closeable {
 		Driver echo = new Echo();
 		if (echo.parse(query))
 			return echo.execute(null);
+
+		Driver export = new Export();
+		if (export.parse(query))
+			return export.execute(this);
+
+		Driver imporT = new Import();
+		if (imporT.parse(query))
+			return imporT.execute(this);
 
 		Driver insert = new InsertInto();
 		if (insert.parse(query))
