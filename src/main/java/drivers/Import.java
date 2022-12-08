@@ -2,7 +2,6 @@ package drivers;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -28,7 +27,7 @@ import jakarta.json.JsonValue;
 import sql.Driver;
 import sql.FieldType;
 import sql.QueryError;
-import tables.SearchTable;
+import tables.HashArrayTable;
 import tables.Table;
 
 /*
@@ -69,16 +68,6 @@ public class Import implements Driver {
 	@Override
 	public Object execute(Database db) throws QueryError {
 
-		int fileCounter = 1;
-		while (Files.exists(Paths.get("data", "exports", fileName + "_" + fileCounter))) { // while file name already exists
-			if (fileCounter == 1) { // if first time finding same fileName
-				fileName = fileName + "_" + fileCounter; // add underscore and number to represent number of times found
-			} else { // have already made a file name same as one considered in if case
-				fileName = fileName.substring(0, fileName.length() - 1) + fileCounter; // replace number at end to represent how many times found
-			}
-			fileCounter++;
-		}
-
 		Path path = Paths.get("data", "exports", fileName); // define path to import file from
 
 		try {
@@ -96,7 +85,23 @@ public class Import implements Driver {
 				if (tableName == null) { // if table name not defined in query
 					table_name = schema.getString("table_name"); // set table name to that found in file
 				} else { // else
-					table_name = tableName; // set table name to that defined in query
+					table_name = tableName.toString();
+					// set name to given name, ensuring no duplicate table names
+				}
+
+				int tableCounter = 1;
+				System.out.println(table_name);
+				if (db.find(tableName) != null)
+					System.out.println("found");
+				else
+					System.out.println("not found");
+				while (db.exists(table_name)) { // while table name exists
+					if (tableCounter == 1) { // if first time finding same table
+						table_name = table_name + "_" + tableCounter; // add underscore and number to represent number of times found
+					} else { // have already made a table name same as one considered in if case
+						table_name = table_name.substring(0, table_name.length() - 1) + tableCounter; // replace number at end to represent how many times found
+					}
+					tableCounter++;
 				}
 
 				JsonArray column_names_array = schema.getJsonArray("column_names"); // get column names array from schema object
@@ -114,7 +119,7 @@ public class Import implements Driver {
 
 				int primary_index = schema.getInt("primary_index"); // get primary index int from schema object
 
-				Table table = new SearchTable(table_name, column_names, column_types, primary_index); // create table
+				Table table = new HashArrayTable(table_name, column_names, column_types, primary_index); // create table
 
 				// STATE
 				//
@@ -139,7 +144,7 @@ public class Import implements Driver {
 					}
 					table.put(elements); // put the array of elements (the row) into the table
 				}
-
+				db.create(table);
 				return table;
 
 			} else { //xml mode
@@ -172,7 +177,7 @@ public class Import implements Driver {
 
 					int primary_index = Integer.parseInt(columns_elem.getAttribute("primary"));
 
-					Table table = new SearchTable(table_name, column_names, column_types, primary_index);
+					Table table = new HashArrayTable(table_name, column_names, column_types, primary_index);
 
 					// STATE
 					//
@@ -197,7 +202,7 @@ public class Import implements Driver {
 						}
 						table.put(elements);
 					}
-
+					db.create(table);
 					return table;
 				} catch (IOException | ParserConfigurationException | SAXException e) {
 					throw new RuntimeException(e);
