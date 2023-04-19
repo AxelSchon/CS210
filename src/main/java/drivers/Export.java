@@ -94,8 +94,6 @@ public class Export implements Driver {
 			fileCounter++;
 		}
 
-		Path path = Paths.get("data", "exports", fileName);
-
 		// define sourceTable reference
 		var sourceTable = db.find(tableName);
 		var columnNames = sourceTable.getColumnNames();
@@ -105,6 +103,9 @@ public class Export implements Driver {
 		// json mode
 		if (jsonMode == true) {
 			try {
+
+				Path path = Paths.get("data", "exports", fileName + ".json");
+
 				JsonObjectBuilder root_object_builder = Json.createObjectBuilder();
 
 				//
@@ -177,6 +178,8 @@ public class Export implements Driver {
 		//xml mode
 		else {
 			try {
+
+				Path path = Paths.get("data", "exports", fileName + ".xml");
 				Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
 
 				//

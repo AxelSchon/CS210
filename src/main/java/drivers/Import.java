@@ -68,10 +68,10 @@ public class Import implements Driver {
 	@Override
 	public Object execute(Database db) throws QueryError {
 
-		Path path = Paths.get("data", "exports", fileName); // define path to import file from
-
 		try {
 			if (jsonMode == true) { // json mode
+
+				Path path = Paths.get("data", "exports", fileName + ".json"); // define path to import file from
 
 				if (path.toFile().exists()) {
 
@@ -149,6 +149,9 @@ public class Import implements Driver {
 
 			} else { //xml mode
 				try {
+
+					Path path = Paths.get("data", "exports", fileName + ".xml"); // define path to import file from
+
 					if (path.toFile().exists()) {
 
 						Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(path.toFile());
